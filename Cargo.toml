@@ -18,7 +18,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 # Core dependencies
-pyo3 = { version = "0.22", features = ["extension-module", "abi3-py38"] }
+pyo3 = { version = "0.27", features = ["extension-module", "abi3-py38"] }
 teehistorian = "0.12"
 
 # Error handling
