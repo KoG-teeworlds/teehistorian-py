@@ -79,11 +79,13 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          file: ./coverage.xml
           flags: unittests
           name: codecov-umbrella
           fail_ci_if_error: false
           verbose: true
+          override_branch: ${{ github.head_ref || github.ref_name }}
+          override_build: ${{ github.run_number }}
+          override_pr: ${{ github.event.number }}
 
       - name: Archive coverage reports
         if: matrix.python-version == '3.11'
