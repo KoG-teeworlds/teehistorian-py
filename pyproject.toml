@@ -45,10 +45,9 @@ test = ["pytest>=7.0", "pytest-cov>=4.0", "pytest-benchmark>=4.0"]
 
 [project.urls]
 Homepage = "https://github.com/KoG-teeworlds/teehistorian-py"
-Documentation = "https://teehistorian-py.readthedocs.io/"
+Documentation = "https://kog-teeworlds.github.io/teehistorian-py/"
 Repository = "https://github.com/KoG-teeworlds/teehistorian-py"
 "Bug Tracker" = "https://github.com/KoG-teeworlds/teehistorian-py/issues"
-Changelog = "https://github.com/KoG-teeworlds/teehistorian-py/blob/main/CHANGELOG.md"
 
 # Scripts would go here when implemented
 # [project.scripts]
