@@ -83,9 +83,15 @@ open htmlcov/index.html  # On macOS
 # or visit htmlcov/index.html in your browser
 ```
 
-### Code Coverage
+### Code Coverage & Security
 
-We maintain **80%+ code coverage** with branch coverage enabled. Coverage reports are automatically generated for each PR and available on [Codecov](https://codecov.io/gh/KoG-teeworlds/teehistorian-py).
+We maintain **80%+ code coverage** with branch coverage enabled and modern security practices:
+
+- **Coverage**: Branch coverage enabled with automatic PR reports via [Codecov](https://codecov.io/gh/KoG-teeworlds/teehistorian-py)
+- **Security**: OIDC trusted publishing (no API keys required)
+- **Modern CI/CD**: GitHub Actions with hardened runners and security scanning
+- **Automated**: Rust security audits, Python vulnerability scans, and dependency checks
+
 
 ### Requirements
 
