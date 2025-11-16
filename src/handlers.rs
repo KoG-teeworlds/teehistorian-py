@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use pyo3::prelude::*;
-use pyo3::IntoPy;
 use teehistorian::Chunk;
 
 use crate::chunks::*;
@@ -58,75 +57,75 @@ impl<'a> ChunkConverter<'a> {
         py: Python<'_>,
         chunk: Chunk,
         _chunk_number: usize,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         match chunk {
             // Player lifecycle events
             Chunk::Join { cid } => {
                 let obj = PyJoin::new(cid);
-                Ok(obj.into_py(py))
+                Ok(Py::new(py, obj)?.into())
             }
 
             Chunk::JoinVer6 { cid } => {
                 let obj = PyJoinVer6::new(cid);
-                Ok(obj.into_py(py))
+                Ok(Py::new(py, obj)?.into())
             }
 
             Chunk::Drop(drop_data) => {
                 let reason = safe_decode(drop_data.reason);
                 let obj = PyDrop::new(drop_data.cid, reason);
-                Ok(obj.into_py(py))
+                Ok(Py::new(py, obj)?.into())
             }
 
             Chunk::PlayerReady { cid } => {
                 let obj = PyPlayerReady::new(cid);
-                Ok(obj.into_py(py))
+                Ok(Py::new(py, obj)?.into())
             }
 
             // Player state events
             Chunk::PlayerNew(p) => {
                 let obj = PyPlayerNew::new(p.cid, p.x, p.y);
-                Ok(obj.into_py(py))
+                Ok(Py::new(py, obj)?.into())
             }
 
             Chunk::PlayerOld { cid } => {
                 let obj = PyPlayerOld::new(cid);
-                Ok(obj.into_py(py))
+                Ok(Py::new(py, obj)?.into())
             }
 
             Chunk::PlayerTeam { cid, team } => {
                 let obj = PyPlayerTeam::new(cid, team);
-                Ok(obj.into_py(py))
+                Ok(Py::new(py, obj)?.into())
             }
 
             Chunk::PlayerName(player_name) => {
                 let name = safe_decode(player_name.name);
                 let obj = PyPlayerName::new(player_name.cid, name);
-                Ok(obj.into_py(py))
+                Ok(Py::new(py, obj)?.into())
             }
 
             Chunk::PlayerDiff(diff) => {
                 let obj = PyPlayerDiff::new(diff.cid, diff.dx, diff.dy);
-                Ok(obj.into_py(py))
+                Ok(Py::new(py, obj)?.into())
             }
 
             // Input events
             Chunk::InputNew(input_new) => {
                 let input_str = format!("{:?}", input_new.input);
                 let obj = PyInputNew::new(input_new.cid, input_str);
-                Ok(obj.into_py(py))
+                Ok(Py::new(py, obj)?.into())
             }
 
             Chunk::InputDiff(diff) => {
                 let input_vec = diff.dinput.to_vec();
                 let obj = PyInputDiff::new(diff.cid, input_vec);
-                Ok(obj.into_py(py))
+                Ok(Py::new(py, obj)?.into())
             }
 
             // Communication events
             Chunk::NetMessage(msg) => {
                 let message = safe_decode(msg.msg);
                 let obj = PyNetMessage::new(msg.cid, message);
-                Ok(obj.into_py(py))
+                Ok(Py::new(py, obj)?.into())
             }
 
             Chunk::ConsoleCommand(console_cmd) => {
@@ -138,50 +137,50 @@ impl<'a> ChunkConverter<'a> {
                     .collect::<Vec<_>>()
                     .join(" ");
                 let obj = PyConsoleCommand::new(console_cmd.cid, console_cmd.flags, command, args);
-                Ok(obj.into_py(py))
+                Ok(Py::new(py, obj)?.into())
             }
 
             // Authentication & version events
             Chunk::AuthLogin(auth) => {
                 let auth_name = safe_decode(auth.auth_name);
                 let obj = PyAuthLogin::new(auth.cid, auth.level, auth_name);
-                Ok(obj.into_py(py))
+                Ok(Py::new(py, obj)?.into())
             }
 
             Chunk::DdnetVersion(ver) => {
                 let connection_id = ver.connection_id.to_string();
                 let version_str = ver.version_str.to_vec();
                 let obj = PyDdnetVersion::new(ver.cid, connection_id, ver.version, version_str);
-                Ok(obj.into_py(py))
+                Ok(Py::new(py, obj)?.into())
             }
 
             // Server events
             Chunk::TickSkip { dt } => {
                 let obj = PyTickSkip::new(dt);
-                Ok(obj.into_py(py))
+                Ok(Py::new(py, obj)?.into())
             }
 
             Chunk::TeamLoadSuccess(team_load) => {
                 let save_str = format!("{:?}", team_load.save);
                 let obj = PyTeamLoadSuccess::new(team_load.team, save_str);
-                Ok(obj.into_py(py))
+                Ok(Py::new(py, obj)?.into())
             }
 
             Chunk::TeamLoadFailure { team } => {
                 let obj = PyTeamLoadFailure::new(team);
-                Ok(obj.into_py(py))
+                Ok(Py::new(py, obj)?.into())
             }
 
             Chunk::Antibot(data) => {
                 let data_str = format!("{:?}", data);
                 let obj = PyAntiBot::new(data_str);
-                Ok(obj.into_py(py))
+                Ok(Py::new(py, obj)?.into())
             }
 
             // Special events
             Chunk::Eos => {
                 let obj = PyEos::new();
-                Ok(obj.into_py(py))
+                Ok(Py::new(py, obj)?.into())
             }
 
             Chunk::UnknownEx(unknown_data) => {
@@ -195,10 +194,10 @@ impl<'a> ChunkConverter<'a> {
                         data,
                         handler.name().to_string(),
                     );
-                    Ok(obj.into_py(py))
+                    Ok(Py::new(py, obj)?.into())
                 } else {
                     let obj = PyUnknown::new(uuid_str, data);
-                    Ok(obj.into_py(py))
+                    Ok(Py::new(py, obj)?.into())
                 }
             }
 
@@ -206,7 +205,7 @@ impl<'a> ChunkConverter<'a> {
             _ => {
                 let chunk_str = format!("{:?}", chunk);
                 let obj = PyGeneric::new(chunk_str);
-                Ok(obj.into_py(py))
+                Ok(Py::new(py, obj)?.into())
             }
         }
     }

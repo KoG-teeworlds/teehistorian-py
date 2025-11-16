@@ -56,8 +56,8 @@ macro_rules! define_chunk {
             }
 
             /// Convert to dictionary for easier inspection
-            fn to_dict(&self, py: Python<'_>) -> PyResult<PyObject> {
-                let dict = pyo3::types::PyDict::new_bound(py);
+            fn to_dict(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+                let dict = pyo3::types::PyDict::new(py);
                 dict.set_item("type", $pyname)?;
                 $(
                     dict.set_item(stringify!($field), &self.$field)?;
@@ -271,8 +271,8 @@ impl PyEos {
         "Eos"
     }
 
-    fn to_dict(&self, py: Python<'_>) -> PyResult<PyObject> {
-        let dict = pyo3::types::PyDict::new_bound(py);
+    fn to_dict(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        let dict = pyo3::types::PyDict::new(py);
         dict.set_item("type", "Eos")?;
         Ok(dict.into())
     }
@@ -317,8 +317,8 @@ impl PyUnknown {
         "Unknown"
     }
 
-    fn to_dict(&self, py: Python<'_>) -> PyResult<PyObject> {
-        let dict = pyo3::types::PyDict::new_bound(py);
+    fn to_dict(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        let dict = pyo3::types::PyDict::new(py);
         dict.set_item("type", "Unknown")?;
         dict.set_item("uuid", &self.uuid)?;
         dict.set_item("data_length", self.data.len())?;
@@ -388,8 +388,8 @@ impl PyCustomChunk {
         "CustomChunk"
     }
 
-    fn to_dict(&self, py: Python<'_>) -> PyResult<PyObject> {
-        let dict = pyo3::types::PyDict::new_bound(py);
+    fn to_dict(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        let dict = pyo3::types::PyDict::new(py);
         dict.set_item("type", "CustomChunk")?;
         dict.set_item("uuid", &self.uuid)?;
         dict.set_item("handler_name", &self.handler_name)?;
@@ -452,13 +452,10 @@ impl PyGeneric {
         "Generic"
     }
 
-    fn to_dict(&self, py: Python<'_>) -> PyResult<PyObject> {
-        let dict = pyo3::types::PyDict::new_bound(py);
+    fn to_dict(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        let dict = pyo3::types::PyDict::new(py);
         dict.set_item("type", "Generic")?;
         dict.set_item("data", &self.data)?;
         Ok(dict.into())
     }
 }
-
-// PyO3 extensions cannot be tested with cargo test due to Python runtime linking requirements.
-// All functionality tests are implemented in Python in tests/test_python_integration.py

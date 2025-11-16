@@ -135,13 +135,13 @@ impl PyTeehistorian {
     ///
     /// # Returns
     /// Header bytes or error
-    fn header(&mut self, py: Python<'_>) -> PyResult<PyObject> {
+    fn header(&mut self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         let header_bytes = self
             .inner
             .header()
             .map_err(|e| TeehistorianParseError::Header(e.to_string()))?;
 
-        Ok(PyBytes::new_bound(py, &header_bytes).into())
+        Ok(PyBytes::new(py, &header_bytes).into())
     }
 
     /// Python iterator protocol support
@@ -153,7 +153,7 @@ impl PyTeehistorian {
     ///
     /// # Returns
     /// Next chunk as Python object or None at EOF
-    fn __next__(&mut self, py: Python<'_>) -> PyResult<Option<PyObject>> {
+    fn __next__(&mut self, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
         match self.inner.next_chunk() {
             Ok(Some(chunk)) => {
                 self.chunk_count += 1;
@@ -215,7 +215,7 @@ fn _rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Add exception types
     m.add(
         "TeehistorianError",
-        m.py().get_type_bound::<errors::TeehistorianError>(),
+        m.py().get_type::<errors::TeehistorianError>(),
     )?;
 
     // Add main parser class

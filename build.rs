@@ -66,8 +66,8 @@ fn main() {
 
     // Parse chunks.rs to extract chunk classes
     let chunks_path = PathBuf::from("src/chunks.rs");
-    if let Ok(content) = fs::read_to_string(&chunks_path) {
-        if let Ok(file) = parse_file(&content) {
+    if let Ok(content) = fs::read_to_string(&chunks_path)
+        && let Ok(file) = parse_file(&content) {
             // Add base Chunk class
             pyi_content.push_str("class Chunk:\n");
             pyi_content.push_str("    \"\"\"Base class for all chunk types\"\"\"\n");
@@ -86,7 +86,6 @@ fn main() {
                 }
             }
         }
-    }
 
     // Add type unions for convenience
     pyi_content.push_str("\n# Type unions for easier type checking\n");
