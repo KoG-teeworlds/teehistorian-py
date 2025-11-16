@@ -11,13 +11,11 @@ TeehistorianError
 
 ## TeehistorianError
 
-::: teehistorian_py.TeehistorianError
-
-Base exception for all teehistorian parsing errors.
+**Base exception for all teehistorian parsing errors.**
 
 All other exceptions inherit from this class.
 
-**Example:**
+**Usage:**
 ```python
 try:
     parser = th.Teehistorian(data)
@@ -27,13 +25,13 @@ except th.TeehistorianError as e:
 
 ## ParseError
 
-::: teehistorian_py.ParseError
+**Exception for parsing errors.**
 
-Exception for parsing errors.
+Inherits from `TeehistorianError`.
 
 Raised when the parser encounters invalid data or cannot parse a chunk.
 
-**Example:**
+**Usage:**
 ```python
 try:
     parser = th.Teehistorian(corrupted_data)
@@ -45,13 +43,13 @@ except th.ParseError as e:
 
 ## ValidationError
 
-::: teehistorian_py.ValidationError
+**Exception for validation errors.**
 
-Exception for validation errors.
+Inherits from `TeehistorianError`.
 
 Raised when input data fails validation checks (e.g., empty data, too short, invalid format).
 
-**Example:**
+**Usage:**
 ```python
 try:
     parser = th.Teehistorian(b"")
@@ -61,13 +59,13 @@ except th.ValidationError as e:
 
 ## FileError
 
-::: teehistorian_py.FileError
+**Exception for file I/O errors.**
 
-Exception for file I/O errors.
+Inherits from `TeehistorianError`.
 
 Raised when there are issues reading or accessing the file.
 
-**Example:**
+**Usage:**
 ```python
 try:
     with open("demo.teehistorian", "rb") as f:

@@ -2,9 +2,7 @@
 
 ## Teehistorian
 
-::: teehistorian_py.Teehistorian
-
-The main parser class for teehistorian files.
+**The main parser class for teehistorian files.**
 
 ### Constructor
 
