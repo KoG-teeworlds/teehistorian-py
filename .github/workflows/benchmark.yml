@@ -60,6 +60,7 @@ jobs:
           pytest benchmarks/ --benchmark-json=benchmark-results.json
 
       - name: Store benchmark results
+        if: steps.check_benchmarks.outputs.benchmarks_exist == 'true'
         uses: benchmark-action/github-action-benchmark@v1
         with:
           tool: "pytest"
