@@ -2,16 +2,28 @@
 
 ## Creating a Parser
 
-The `Teehistorian` class is the main entry point for parsing teehistorian files:
+The recommended way to parse teehistorian files is using the `open()` function with a context manager:
 
 ```python
 import teehistorian_py as th
 
-# Read the file
-with open("demo.teehistorian", "rb") as f:
-    data = f.read()
+# Recommended: use context manager
+with th.open("demo.teehistorian") as parser:
+    for chunk in parser:
+        print(chunk)
+```
 
-# Create the parser
+Alternative methods:
+
+```python
+import teehistorian_py as th
+
+# Method 1: Using parse()
+parser = th.parse("demo.teehistorian")
+
+# Method 2: From bytes directly
+from pathlib import Path
+data = Path("demo.teehistorian").read_bytes()
 parser = th.Teehistorian(data)
 ```
 

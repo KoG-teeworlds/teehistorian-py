@@ -74,6 +74,13 @@ impl PyTeehistorian {
     ///
     /// # Returns
     /// A new parser instance or an error
+    ///
+    /// # Example
+    /// ```python
+    /// with open("demo.teehistorian", "rb") as f:
+    ///     data = f.read()
+    /// parser = Teehistorian(data)
+    /// ```
     #[new]
     fn new(data: &[u8]) -> PyResult<Self> {
         // Basic validation
@@ -191,6 +198,22 @@ impl PyTeehistorian {
     /// Get registered handler UUIDs
     fn get_registered_uuids(&self) -> Vec<String> {
         self.handlers.keys().cloned().collect()
+    }
+
+    /// Context manager entry
+    fn __enter__(slf: Py<Self>) -> Py<Self> {
+        slf
+    }
+
+    /// Context manager exit
+    fn __exit__(
+        &mut self,
+        _exc_type: Option<&Bound<'_, pyo3::types::PyAny>>,
+        _exc_value: Option<&Bound<'_, pyo3::types::PyAny>>,
+        _traceback: Option<&Bound<'_, pyo3::types::PyAny>>,
+    ) -> PyResult<bool> {
+        // Nothing to clean up, just return False to not suppress exceptions
+        Ok(false)
     }
 }
 

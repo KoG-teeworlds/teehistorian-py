@@ -15,18 +15,26 @@ High-performance Python bindings for parsing teehistorian files, written in Rust
 ```python
 import teehistorian_py as th
 
-# Parse a teehistorian file
-with open("demo.teehistorian", "rb") as f:
-    data = f.read()
+# Parse a teehistorian file (modern way)
+with th.open("demo.teehistorian") as parser:
+    for chunk in parser:
+        if isinstance(chunk, th.Join):
+            print(f"Player {chunk.client_id} joined")
+        elif isinstance(chunk, th.Drop):
+            print(f"Player {chunk.client_id} left: {chunk.reason}")
+```
 
-parser = th.Teehistorian(data)
+Or with Python 3.10+ match statement:
 
-# Iterate over chunks
-for chunk in parser:
-    if isinstance(chunk, th.Join):
-        print(f"Player {chunk.client_id} joined")
-    elif isinstance(chunk, th.Drop):
-        print(f"Player {chunk.client_id} left: {chunk.reason}")
+```python
+import teehistorian_py as th
+
+for chunk in th.parse("demo.teehistorian"):
+    match chunk:
+        case th.Join(client_id=cid):
+            print(f"Player {cid} joined")
+        case th.Drop(client_id=cid, reason=reason):
+            print(f"Player {cid} left: {reason}")
 ```
 
 ## Installation
