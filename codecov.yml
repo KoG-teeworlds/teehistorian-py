@@ -27,3 +27,8 @@ ignore:
   - "docs/"
   - "setup.py"
   - "build.rs"
+
+flags:
+  unittests:
+    paths:
+      - src/python/teehistorian_py/

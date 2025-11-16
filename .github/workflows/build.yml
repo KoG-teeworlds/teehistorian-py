@@ -72,7 +72,7 @@ jobs:
       - name: Run Python tests
         run: |
           source .venv/bin/activate
-          pytest tests/ -v --cov=teehistorian_py --cov-report=xml --cov-report=html --cov-report=term
+          pytest tests/ -v --cov=src/python/teehistorian_py --cov-report=xml --cov-report=html --cov-report=term-missing --cov-branch
 
       - name: Upload coverage to Codecov
         if: matrix.python-version == '3.11'
@@ -82,6 +82,17 @@ jobs:
           flags: unittests
           name: codecov-umbrella
           fail_ci_if_error: false
+          verbose: true
+
+      - name: Archive coverage reports
+        if: matrix.python-version == '3.11'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: |
+            coverage.xml
+            htmlcov/
+            .coverage
 
   # Build wheels for multiple platforms
   build-wheels:

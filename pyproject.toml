@@ -117,6 +117,7 @@ markers = [
 
 [tool.coverage.run]
 source = ["src/python/teehistorian_py"]
+branch = true
 omit = ["*/tests/*", "*/test_*", "setup.py"]
 
 [tool.coverage.report]

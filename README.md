@@ -5,6 +5,7 @@
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![Documentation](https://img.shields.io/badge/docs-latest-brightgreen.svg)](https://kog-teeworlds.github.io/teehistorian-py/)
 [![codecov](https://codecov.io/gh/KoG-teeworlds/teehistorian-py/branch/main/graph/badge.svg)](https://codecov.io/gh/KoG-teeworlds/teehistorian-py)
+
 [![CI](https://github.com/KoG-teeworlds/teehistorian-py/workflows/Build%20and%20Publish/badge.svg)](https://github.com/KoG-teeworlds/teehistorian-py/actions)
 
 High-performance Python bindings for parsing Teeworlds/DDNet teehistorian files. Built with Rust for speed and memory safety.
@@ -64,15 +65,27 @@ See the **[full documentation](https://kog-teeworlds.github.io/teehistorian-py/)
 ### Building from Source
 
 ```bash
+# Clone the repository
+git clone https://github.com/KoG-teeworlds/teehistorian-py.git
+cd teehistorian-py
+
 # Install development dependencies
-pip install maturin
+pip install -e ".[dev]"
 
 # Build extension module
 maturin develop --release
 
-# Run tests
-pytest tests/
+# Run tests with coverage
+pytest tests/ --cov=src/python/teehistorian_py --cov-report=html --cov-report=term-missing
+
+# View coverage report
+open htmlcov/index.html  # On macOS
+# or visit htmlcov/index.html in your browser
 ```
+
+### Code Coverage
+
+We maintain **80%+ code coverage** with branch coverage enabled. Coverage reports are automatically generated for each PR and available on [Codecov](https://codecov.io/gh/KoG-teeworlds/teehistorian-py).
 
 ### Requirements
 
