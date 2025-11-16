@@ -6,14 +6,68 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
-  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
-  build-docs:
-    name: Build Documentation
+  deploy-docs:
+    name: Deploy Documentation
     runs-on: ubuntu-latest
-    outputs:
-      docs_exist: ${{ steps.check_docs.outputs.docs_exist }}
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if docs exist
+        id: check_docs
+        run: |
+          if [ -f "mkdocs.yml" ] && [ -d "docs" ]; then
+            echo "docs_exist=true" >> $GITHUB_OUTPUT
+          else
+            echo "docs_exist=false" >> $GITHUB_OUTPUT
+            echo "MkDocs configuration or docs directory not found, skipping deployment"
+          fi
+
+      - name: Configure Git Credentials
+        if: steps.check_docs.outputs.docs_exist == 'true'
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+
+      - name: Set up Python
+        if: steps.check_docs.outputs.docs_exist == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.x
+
+      - name: Set up cache
+        if: steps.check_docs.outputs.docs_exist == 'true'
+        run: echo "cache_id=$(date --utc '+%V')" >> $GITHUB_ENV
+
+      - name: Cache dependencies
+        if: steps.check_docs.outputs.docs_exist == 'true'
+        uses: actions/cache@v4
+        with:
+          key: mkdocs-material-${{ env.cache_id }}
+          path: ~/.cache
+          restore-keys: |
+            mkdocs-material-
+
+      - name: Install dependencies
+        if: steps.check_docs.outputs.docs_exist == 'true'
+        run: pip install mkdocs-material mkdocstrings[python]
+
+      - name: Deploy documentation
+        if: steps.check_docs.outputs.docs_exist == 'true'
+        run: mkdocs gh-deploy --force
+
+  build-docs:
+    name: Build Documentation (PR)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
 
     steps:
       - uses: actions/checkout@v4
@@ -30,44 +84,14 @@ jobs:
 
       - name: Set up Python
         if: steps.check_docs.outputs.docs_exist == 'true'
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: 3.x
 
       - name: Install dependencies
         if: steps.check_docs.outputs.docs_exist == 'true'
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e .[docs]
+        run: pip install mkdocs-material mkdocstrings[python]
 
       - name: Build documentation
         if: steps.check_docs.outputs.docs_exist == 'true'
-        run: mkdocs build
-
-      - name: Upload documentation
-        if: steps.check_docs.outputs.docs_exist == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: documentation
-          path: site/
-
-  deploy-docs:
-    name: Deploy Documentation
-    runs-on: ubuntu-latest
-    needs: build-docs
-    if: github.ref == 'refs/heads/main' && needs.build-docs.outputs.docs_exist == 'true'
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download documentation
-        uses: actions/download-artifact@v4
-        with:
-          name: documentation
-          path: site/
-
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: site/
+        run: mkdocs build --strict
