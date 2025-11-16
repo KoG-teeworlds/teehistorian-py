@@ -67,4 +67,3 @@ nav:
       - Chunks: api/chunks.md
       - Errors: api/errors.md
   - Contributing: contributing.md
-  - Changelog: changelog.md
