@@ -8,6 +8,7 @@ on:
     branches: [main]
   release:
     types: [published]
+  workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always
@@ -105,7 +106,7 @@ jobs:
         run: maturin build --release --out dist --find-interpreter
 
       - name: Upload wheels
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: wheels-${{ matrix.os }}
           path: dist/*.whl
@@ -135,7 +136,7 @@ jobs:
         run: maturin sdist --out dist
 
       - name: Upload sdist
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sdist
           path: dist/*.tar.gz
@@ -154,13 +155,15 @@ jobs:
 
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
 
       - name: Combine artifacts
         run: |
           mkdir -p dist/
-          cp wheels-*/*.whl dist/
-          cp sdist/*.tar.gz dist/
+          find artifacts/ -name '*.whl' -exec cp {} dist/ \;
+          find artifacts/ -name '*.tar.gz' -exec cp {} dist/ \;
           ls -la dist/
 
       - name: Publish to PyPI
@@ -183,13 +186,15 @@ jobs:
 
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
 
       - name: Combine artifacts
         run: |
           mkdir -p dist/
-          cp wheels-*/*.whl dist/
-          cp sdist/*.tar.gz dist/
+          find artifacts/ -name '*.whl' -exec cp {} dist/ \;
+          find artifacts/ -name '*.tar.gz' -exec cp {} dist/ \;
           ls -la dist/
 
       - name: Publish to TestPyPI
