@@ -1,7 +1,7 @@
 [package]
 name = "teehistorian-py"
 version = "2.0.0"
-edition = "2021"
+edition = "2024"
 authors = ["Avolicious <avolicious@kog.tw>"]
 description = "High-performance Python bindings for teehistorian parsing"
 license = "AGPL-3.0-or-later"
