@@ -1,6 +1,6 @@
 use quote::quote;
 use std::{env, fs, path::PathBuf};
-use syn::{parse_file, Fields, Item, ItemStruct, Type, Visibility};
+use syn::{Fields, Item, ItemStruct, Type, Visibility, parse_file};
 
 fn main() {
     println!("cargo:rerun-if-changed=src/chunks.rs");
@@ -67,25 +67,26 @@ fn main() {
     // Parse chunks.rs to extract chunk classes
     let chunks_path = PathBuf::from("src/chunks.rs");
     if let Ok(content) = fs::read_to_string(&chunks_path)
-        && let Ok(file) = parse_file(&content) {
-            // Add base Chunk class
-            pyi_content.push_str("class Chunk:\n");
-            pyi_content.push_str("    \"\"\"Base class for all chunk types\"\"\"\n");
-            pyi_content.push_str("    def chunk_type(self) -> str: ...\n");
-            pyi_content.push_str("    def __repr__(self) -> str: ...\n");
-            pyi_content.push_str("    def __str__(self) -> str: ...\n");
-            pyi_content.push_str("    def to_dict(self) -> Dict[str, Any]: ...\n\n");
+        && let Ok(file) = parse_file(&content)
+    {
+        // Add base Chunk class
+        pyi_content.push_str("class Chunk:\n");
+        pyi_content.push_str("    \"\"\"Base class for all chunk types\"\"\"\n");
+        pyi_content.push_str("    def chunk_type(self) -> str: ...\n");
+        pyi_content.push_str("    def __repr__(self) -> str: ...\n");
+        pyi_content.push_str("    def __str__(self) -> str: ...\n");
+        pyi_content.push_str("    def to_dict(self) -> Dict[str, Any]: ...\n\n");
 
-            // Process each struct in the file
-            for item in file.items {
-                if let Item::Struct(item_struct) = item {
-                    // Only process PyXXX structs that are public and have pyclass attribute
-                    if let Some(class_def) = extract_pyclass(&item_struct) {
-                        pyi_content.push_str(&class_def);
-                    }
+        // Process each struct in the file
+        for item in file.items {
+            if let Item::Struct(item_struct) = item {
+                // Only process PyXXX structs that are public and have pyclass attribute
+                if let Some(class_def) = extract_pyclass(&item_struct) {
+                    pyi_content.push_str(&class_def);
                 }
             }
         }
+    }
 
     // Add type unions for convenience
     pyi_content.push_str("\n# Type unions for easier type checking\n");

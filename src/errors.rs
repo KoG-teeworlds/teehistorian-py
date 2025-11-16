@@ -72,8 +72,10 @@ mod tests {
     fn test_error_conversion() {
         let err = TeehistorianParseError::Validation("Invalid data".to_string());
         let py_err: PyErr = err.into();
-        assert!(py_err
-            .to_string()
-            .contains("Validation failed: Invalid data"));
+        assert!(
+            py_err
+                .to_string()
+                .contains("Validation failed: Invalid data")
+        );
     }
 }
