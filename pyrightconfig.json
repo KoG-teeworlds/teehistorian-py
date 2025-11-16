@@ -1,0 +1,11 @@
+{
+  "include": ["**/*.py"],
+  "exclude": ["**/__pycache__", ".venv"],
+  "reportMissingImports": true,
+  "reportMissingTypeStubs": false,
+  "reportAttributeAccessIssue": "warning",
+  "pythonVersion": "3.12",
+  "pythonPlatform": "All",
+  "stubPath": ".",
+  "venvPath": ".venv"
+}

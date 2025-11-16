@@ -1,0 +1,92 @@
+[package]
+name = "teehistorian-py"
+version = "2.0.0"
+edition = "2021"
+authors = ["Avolicious <avolicious@kog.tw>"]
+description = "High-performance Python bindings for teehistorian parsing"
+license = "AGPL-3.0-or-later"
+repository = "https://github.com/KoG-teeworlds/teehistorian-py"
+documentation = "https://docs.rs/teehistorian-py"
+keywords = ["teeworlds", "parser", "python", "bindings", "gaming"]
+categories = ["parsing", "api-bindings", "game-development"]
+readme = "README.md"
+build = "build.rs"
+
+[lib]
+name = "teehistorian_py"
+crate-type = ["cdylib"]
+
+[dependencies]
+# Core dependencies
+pyo3 = { version = "0.22", features = ["extension-module", "abi3-py38"] }
+teehistorian = "0.12"
+
+# Error handling
+thiserror = "2.0"
+
+# Data structures
+indexmap = { version = "2.6", optional = true }
+smallvec = { version = "1.13", optional = true }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"], optional = true }
+serde_json = { version = "1.0", optional = true }
+
+[build-dependencies]
+syn = { version = "2.0", features = ["full", "extra-traits"] }
+quote = "1.0"
+proc-macro2 = "1.0"
+
+[features]
+default = []
+performance = ["indexmap", "smallvec"]
+serialization = ["serde", "serde_json"]
+full = ["performance", "serialization"]
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+panic = "abort"
+strip = true
+overflow-checks = false
+debug-assertions = false
+
+[profile.release-with-debug]
+inherits = "release"
+strip = false
+debug = true
+
+[profile.dev]
+opt-level = 0
+overflow-checks = true
+debug-assertions = true
+debug = true
+
+[profile.bench]
+inherits = "release"
+
+[package.metadata.maturin]
+python-source = "src/python"
+module-name = "teehistorian_py._rust"
+include = [
+    "Cargo.toml",
+    "src/**/*.rs",
+    "src/python/**/*.py",
+    "src/python/**/*.pyi",
+    "README.md",
+    "LICENSE",
+]
+exclude = [
+    "target/",
+    "*.so",
+    "*.dylib",
+    "*.dll",
+    "*.pyd",
+    "__pycache__",
+    ".pytest_cache",
+]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
