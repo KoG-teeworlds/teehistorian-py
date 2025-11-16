@@ -10,6 +10,27 @@ create_exception!(
     "Base exception for all teehistorian parsing errors"
 );
 
+create_exception!(
+    teehistorian_py,
+    ParseError,
+    TeehistorianError,
+    "Exception for parsing errors"
+);
+
+create_exception!(
+    teehistorian_py,
+    ValidationError,
+    TeehistorianError,
+    "Exception for validation errors"
+);
+
+create_exception!(
+    teehistorian_py,
+    FileError,
+    TeehistorianError,
+    "Exception for file I/O errors"
+);
+
 /// Error enum for all possible errors in the library
 #[derive(Debug, Error)]
 pub enum TeehistorianParseError {
@@ -53,8 +74,13 @@ impl From<TeehistorianParseError> for PyErr {
                 // EOF is expected, convert to StopIteration for Python
                 pyo3::exceptions::PyStopIteration::new_err(err.to_string())
             }
+            TeehistorianParseError::Parse(_) | TeehistorianParseError::Header(_) => {
+                ParseError::new_err(err.to_string())
+            }
+            TeehistorianParseError::Validation(_) => ValidationError::new_err(err.to_string()),
+            TeehistorianParseError::Io(_) => FileError::new_err(err.to_string()),
             _ => {
-                // All other errors become TeehistorianError exceptions
+                // All other errors become base TeehistorianError exceptions
                 TeehistorianError::new_err(err.to_string())
             }
         }

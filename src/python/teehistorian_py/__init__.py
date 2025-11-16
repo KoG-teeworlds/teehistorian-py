@@ -17,6 +17,7 @@ from ._rust import (
     DdnetVersion,
     Drop,
     Eos,
+    FileError,
     Generic,
     InputDiff,
     InputNew,
@@ -24,6 +25,7 @@ from ._rust import (
     Join,
     JoinVer6,
     NetMessage,
+    ParseError,
     PlayerDiff,
     PlayerName,
     PlayerNew,
@@ -36,7 +38,11 @@ from ._rust import (
     TeehistorianError,
     TickSkip,
     Unknown,
+    ValidationError,
 )
+
+# Alias for compatibility
+TeehistorianParser = Teehistorian
 
 # Re-export utilities for convenience
 from .utils import calculate_uuid, format_uuid_from_bytes
@@ -47,6 +53,7 @@ __version__ = "2.0.0"
 __all__ = [
     # Core parsing interface
     "Teehistorian",
+    "TeehistorianParser",  # Alias for Teehistorian
     # All chunk types
     "Join",
     "JoinVer6",
@@ -73,6 +80,9 @@ __all__ = [
     "Generic",
     # Exceptions
     "TeehistorianError",
+    "ParseError",
+    "ValidationError",
+    "FileError",
     # Utilities
     "calculate_uuid",
     "format_uuid_from_bytes",

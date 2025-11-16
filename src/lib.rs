@@ -76,16 +76,28 @@ impl PyTeehistorian {
     /// A new parser instance or an error
     #[new]
     fn new(data: &[u8]) -> PyResult<Self> {
-        // Basic validation - let underlying library handle the rest
+        // Basic validation
         if data.is_empty() {
-            return Err(TeehistorianParseError::Initialization(
-                "Cannot parse empty data".to_string(),
+            return Err(
+                TeehistorianParseError::Validation("Cannot parse empty data".to_string()).into(),
+            );
+        }
+
+        // Validate minimum file size (teehistorian files have a header)
+        if data.len() < 16 {
+            return Err(TeehistorianParseError::Validation(
+                "Data too short to be a valid teehistorian file".to_string(),
             )
             .into());
         }
 
-        let parser = TeehistorianParserInner::new(data.to_vec()).map_err(|e| {
-            TeehistorianParseError::Initialization(format!("Failed to initialize parser: {}", e))
+        let mut parser = TeehistorianParserInner::new(data.to_vec()).map_err(|e| {
+            TeehistorianParseError::Parse(format!("Failed to initialize parser: {}", e))
+        })?;
+
+        // Try to parse the header to validate the file format
+        parser.header().map_err(|e| {
+            TeehistorianParseError::Parse(format!("Invalid teehistorian file format: {}", e))
         })?;
 
         Ok(PyTeehistorian {
@@ -217,6 +229,12 @@ fn _rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
         "TeehistorianError",
         m.py().get_type::<errors::TeehistorianError>(),
     )?;
+    m.add("ParseError", m.py().get_type::<errors::ParseError>())?;
+    m.add(
+        "ValidationError",
+        m.py().get_type::<errors::ValidationError>(),
+    )?;
+    m.add("FileError", m.py().get_type::<errors::FileError>())?;
 
     // Add main parser class
     m.add_class::<PyTeehistorian>()?;
