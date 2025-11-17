@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -71,7 +70,9 @@ impl<'a> ChunkConverter<'a> {
             }
 
             Chunk::Drop(drop_data) => {
-                let reason = safe_decode(drop_data.reason);
+                let reason = String::from_utf8_lossy(drop_data.reason)
+                    .trim_end_matches('\0')
+                    .to_string();
                 let obj = PyDrop::new(drop_data.cid, reason);
                 Ok(Py::new(py, obj)?.into())
             }
@@ -98,7 +99,9 @@ impl<'a> ChunkConverter<'a> {
             }
 
             Chunk::PlayerName(player_name) => {
-                let name = safe_decode(player_name.name);
+                let name = String::from_utf8_lossy(player_name.name)
+                    .trim_end_matches('\0')
+                    .to_string();
                 let obj = PyPlayerName::new(player_name.cid, name);
                 Ok(Py::new(py, obj)?.into())
             }
@@ -123,17 +126,25 @@ impl<'a> ChunkConverter<'a> {
 
             // Communication events
             Chunk::NetMessage(msg) => {
-                let message = safe_decode(msg.msg);
+                let message = String::from_utf8_lossy(msg.msg)
+                    .trim_end_matches('\0')
+                    .to_string();
                 let obj = PyNetMessage::new(msg.cid, message);
                 Ok(Py::new(py, obj)?.into())
             }
 
             Chunk::ConsoleCommand(console_cmd) => {
-                let command = safe_decode(console_cmd.cmd);
+                let command = String::from_utf8_lossy(console_cmd.cmd)
+                    .trim_end_matches('\0')
+                    .to_string();
                 let args = console_cmd
                     .args
                     .iter()
-                    .map(|arg| safe_decode(arg))
+                    .map(|arg| {
+                        String::from_utf8_lossy(arg)
+                            .trim_end_matches('\0')
+                            .to_string()
+                    })
                     .collect::<Vec<_>>()
                     .join(" ");
                 let obj = PyConsoleCommand::new(console_cmd.cid, console_cmd.flags, command, args);
@@ -142,7 +153,9 @@ impl<'a> ChunkConverter<'a> {
 
             // Authentication & version events
             Chunk::AuthLogin(auth) => {
-                let auth_name = safe_decode(auth.auth_name);
+                let auth_name = String::from_utf8_lossy(auth.auth_name)
+                    .trim_end_matches('\0')
+                    .to_string();
                 let obj = PyAuthLogin::new(auth.cid, auth.level, auth_name);
                 Ok(Py::new(py, obj)?.into())
             }
@@ -211,47 +224,9 @@ impl<'a> ChunkConverter<'a> {
     }
 }
 
-/// Safely decode bytes to UTF-8 string with optimized allocation
-///
-/// This function attempts to decode bytes as UTF-8, falling back
-/// to lossy conversion if strict decoding fails. It also strips
-/// null bytes from the end of the string.
-fn safe_decode(bytes: &[u8]) -> String {
-    if bytes.is_empty() {
-        return String::new();
-    }
-
-    // Try fast path for valid UTF-8 first
-    match std::str::from_utf8(bytes) {
-        Ok(s) => s.trim_end_matches('\0').to_string(),
-        Err(_) => {
-            // Fall back to lossy conversion only when needed
-            let cow = String::from_utf8_lossy(bytes);
-            match cow {
-                Cow::Borrowed(s) => s.trim_end_matches('\0').to_string(),
-                Cow::Owned(s) => s.trim_end_matches('\0').to_string(),
-            }
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_safe_decode() {
-        // Valid UTF-8
-        assert_eq!(safe_decode(b"hello"), "hello");
-
-        // With null bytes
-        assert_eq!(safe_decode(b"hello\0\0"), "hello");
-
-        // Invalid UTF-8 (replaced with replacement character)
-        let invalid = vec![0xFF, 0xFE];
-        let decoded = safe_decode(&invalid);
-        assert!(!decoded.is_empty());
-    }
 
     #[test]
     fn test_uuid_handler() {

@@ -37,7 +37,6 @@ from ._rust import (
     DdnetVersion,
     Drop,
     Eos,
-    FileError,
     Generic,
     InputDiff,
     InputNew,
@@ -45,7 +44,6 @@ from ._rust import (
     Join,
     JoinVer6,
     NetMessage,
-    ParseError,
     PlayerDiff,
     PlayerName,
     PlayerNew,
@@ -58,8 +56,21 @@ from ._rust import (
     TeehistorianError,
     TickSkip,
     Unknown,
-    ValidationError,
 )
+
+
+# Define temporary exception classes for compatibility
+class ParseError(TeehistorianError):
+    pass
+
+
+class ValidationError(TeehistorianError):
+    pass
+
+
+class FileError(TeehistorianError):
+    pass
+
 
 # Alias for compatibility
 TeehistorianParser = Teehistorian
