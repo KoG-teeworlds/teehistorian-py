@@ -1,5 +1,5 @@
 codecov:
-  require_ci_to_pass: yes
+  require_ci_to_pass: true
   token: # Not required with OIDC
 
 github_checks:
@@ -15,20 +15,15 @@ coverage:
         target: 80%
         threshold: 5%
         if_ci_failed: error
-        if_not_found: success
-        only_pulls: false
     patch:
       default:
         target: 80%
-        threshold: 5%
         if_ci_failed: error
-        if_not_found: success
 
 comment:
   layout: "reach,diff,flags,tree,footer"
   behavior: default
   require_changes: false
-  after_n_builds: 1
 
 ignore:
   - "tests/"
@@ -36,19 +31,8 @@ ignore:
   - "docs/"
   - "setup.py"
   - "build.rs"
-  - "**/__pycache__/"
-  - "**/target/"
 
 flags:
   unittests:
     paths:
       - src/python/teehistorian_py/
-    carryforward: true
-
-parsers:
-  gcov:
-    branch_detection:
-      conditional: yes
-      loop: yes
-      method: no
-      macro: no
