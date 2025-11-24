@@ -59,21 +59,20 @@ fn extract_chunks_from_source() -> Vec<ChunkInfo> {
     let mut chunks = Vec::new();
 
     let chunks_path = PathBuf::from("src/chunks.rs");
-    if let Ok(content) = fs::read_to_string(&chunks_path) {
-        if let Ok(file) = parse_file(&content) {
-            for item in file.items {
-                if let Item::Struct(item_struct) = item {
-                    // Only process PyXXX structs that are public
-                    if item_struct
-                        .attrs
-                        .iter()
-                        .any(|attr| attr.path().is_ident("pyclass"))
-                        && matches!(item_struct.vis, Visibility::Public(_))
-                    {
-                        if let Some(chunk_info) = extract_chunk_info(&item_struct) {
-                            chunks.push(chunk_info);
-                        }
-                    }
+    if let Ok(content) = fs::read_to_string(&chunks_path)
+        && let Ok(file) = parse_file(&content)
+    {
+        for item in file.items {
+            if let Item::Struct(item_struct) = item {
+                // Only process PyXXX structs that are public
+                if item_struct
+                    .attrs
+                    .iter()
+                    .any(|attr| attr.path().is_ident("pyclass"))
+                    && matches!(item_struct.vis, Visibility::Public(_))
+                    && let Some(chunk_info) = extract_chunk_info(&item_struct)
+                {
+                    chunks.push(chunk_info);
                 }
             }
         }
@@ -89,20 +88,17 @@ fn extract_chunks_from_source() -> Vec<ChunkInfo> {
 fn extract_chunk_category(attrs: &[Attribute]) -> Option<String> {
     // First try to find it in doc comments (format: "Category: CategoryName")
     for attr in attrs {
-        if attr.path().is_ident("doc") {
-            if let Meta::NameValue(nv) = &attr.meta {
-                if let syn::Expr::Lit(expr_lit) = &nv.value {
-                    if let syn::Lit::Str(lit_str) = &expr_lit.lit {
-                        let doc = lit_str.value();
-                        if let Some(pos) = doc.find("Category:") {
-                            let category_part = &doc[pos + 9..];
-                            let category =
-                                category_part.trim().split_whitespace().next().unwrap_or("");
-                            if !category.is_empty() {
-                                return Some(category.to_string());
-                            }
-                        }
-                    }
+        if attr.path().is_ident("doc")
+            && let Meta::NameValue(nv) = &attr.meta
+            && let syn::Expr::Lit(expr_lit) = &nv.value
+            && let syn::Lit::Str(lit_str) = &expr_lit.lit
+        {
+            let doc = lit_str.value();
+            if let Some(pos) = doc.find("Category:") {
+                let category_part = &doc[pos + 9..];
+                let category = category_part.split_whitespace().next().unwrap_or("");
+                if !category.is_empty() {
+                    return Some(category.to_string());
                 }
             }
         }
@@ -110,14 +106,12 @@ fn extract_chunk_category(attrs: &[Attribute]) -> Option<String> {
 
     // Fallback: try the old chunk_category attribute (for backwards compatibility)
     for attr in attrs {
-        if attr.path().is_ident("chunk_category") {
-            if let Meta::NameValue(nv) = &attr.meta {
-                if let syn::Expr::Lit(expr_lit) = &nv.value {
-                    if let syn::Lit::Str(lit_str) = &expr_lit.lit {
-                        return Some(lit_str.value().trim().to_string());
-                    }
-                }
-            }
+        if attr.path().is_ident("chunk_category")
+            && let Meta::NameValue(nv) = &attr.meta
+            && let syn::Expr::Lit(expr_lit) = &nv.value
+            && let syn::Lit::Str(lit_str) = &expr_lit.lit
+        {
+            return Some(lit_str.value().trim().to_string());
         }
     }
     None
@@ -149,19 +143,17 @@ fn extract_chunk_info(item_struct: &ItemStruct) -> Option<ChunkInfo> {
     let mut fields = Vec::new();
     if let Fields::Named(named_fields) = &item_struct.fields {
         for field in &named_fields.named {
-            if let Some(field_name) = &field.ident {
-                let has_pyo3_get = field.attrs.iter().any(|attr| {
+            if let Some(field_name) = &field.ident
+                && field.attrs.iter().any(|attr| {
                     attr.path().is_ident("pyo3")
                         && attr
                             .parse_args::<syn::Ident>()
                             .map(|id| id == "get")
                             .unwrap_or(false)
-                });
-
-                if has_pyo3_get {
-                    let py_type = rust_type_to_python(&field.ty);
-                    fields.push((field_name.to_string(), py_type));
-                }
+                })
+            {
+                let py_type = rust_type_to_python(&field.ty);
+                fields.push((field_name.to_string(), py_type));
             }
         }
     }
@@ -179,14 +171,12 @@ fn extract_doc_comments(attrs: &[Attribute]) -> Option<String> {
     let docs: Vec<String> = attrs
         .iter()
         .filter_map(|attr| {
-            if attr.path().is_ident("doc") {
-                if let Meta::NameValue(nv) = &attr.meta {
-                    if let syn::Expr::Lit(expr_lit) = &nv.value {
-                        if let syn::Lit::Str(lit_str) = &expr_lit.lit {
-                            return Some(lit_str.value().trim().to_string());
-                        }
-                    }
-                }
+            if attr.path().is_ident("doc")
+                && let Meta::NameValue(nv) = &attr.meta
+                && let syn::Expr::Lit(expr_lit) = &nv.value
+                && let syn::Lit::Str(lit_str) = &expr_lit.lit
+            {
+                return Some(lit_str.value().trim().to_string());
             }
             None
         })
@@ -423,7 +413,7 @@ fn generate_pyi(chunks: &[ChunkInfo]) -> String {
     for chunk in chunks {
         chunks_by_category
             .entry(chunk.category.clone())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(chunk);
     }
 

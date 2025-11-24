@@ -41,11 +41,14 @@ impl TeehistorianParserInner {
         let data_box = data.into_boxed_slice();
 
         // Try to build the self-referencing struct
-        TeehistorianParserInnerTryBuilder {
-            data: data_box,
-            parser_builder: |data: &Box<[u8]>| Th::parse(data.as_ref()),
+        #[allow(clippy::borrowed_box)]
+        {
+            TeehistorianParserInnerTryBuilder {
+                data: data_box,
+                parser_builder: |data: &Box<[u8]>| Th::parse(data.as_ref()),
+            }
+            .try_build()
         }
-        .try_build()
     }
 
     /// Get the next chunk from the parser
