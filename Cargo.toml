@@ -18,19 +18,29 @@ crate-type = ["cdylib"]
 
 [dependencies]
 # Core dependencies
-pyo3 = { version = "0.27", features = ["extension-module", "abi3-py38"] }
+pyo3 = { version = "0.27", features = ["extension-module"] }
 teehistorian = "0.12"
 
 # Error handling
 thiserror = "2.0"
+
+# Time handling for writer
+chrono = { version = "0.4", features = ["serde"] }
+uuid = "1.4"
 
 # Data structures
 indexmap = { version = "2.6", optional = true }
 smallvec = { version = "1.13", optional = true }
 
 # Serialization
-serde = { version = "1.0", features = ["derive"], optional = true }
-serde_json = { version = "1.0", optional = true }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0" }
+
+# Macro utilities
+paste = "1.0"
+
+# Safe self-referential structures (eliminates Box::leak)
+ouroboros = "0.18"
 
 [build-dependencies]
 syn = { version = "2.0", features = ["full", "extra-traits"] }
@@ -40,8 +50,7 @@ proc-macro2 = "1.0"
 [features]
 default = []
 performance = ["indexmap", "smallvec"]
-serialization = ["serde", "serde_json"]
-full = ["performance", "serialization"]
+full = ["performance"]
 
 [profile.release]
 opt-level = 3

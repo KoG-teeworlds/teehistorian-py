@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use ouroboros::self_referencing;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 use teehistorian::{Chunk, Th};
@@ -8,49 +9,57 @@ use teehistorian::{Chunk, Th};
 mod chunks;
 mod errors;
 mod handlers;
+mod macros;
+mod writer;
 
 use chunks::*;
 use errors::TeehistorianParseError;
 use handlers::*;
+use writer::*;
 
 /// Type alias for thread-safe handler storage
 type HandlerMap = Arc<HashMap<String, UuidHandler>>;
 
-/// Index-based parser structure
+/// Safe self-referential parser using `ouroboros`
+///
+/// This structure safely holds data and a parser that references it, with zero
+/// runtime overhead and no memory leaks. The `ouroboros` crate provides compile-time
+/// guarantees that references remain valid.
+#[self_referencing]
 struct TeehistorianParserInner {
-    data: Vec<u8>,
-    parser: Option<Th<&'static [u8]>>,
+    data: Box<[u8]>,
+    #[borrows(data)]
+    #[covariant]
+    parser: Th<&'this [u8]>,
 }
 
 impl TeehistorianParserInner {
     /// Create a new parser from data
-    fn new(data: Vec<u8>) -> Result<Self, teehistorian::Error> {
-        Ok(Self { data, parser: None })
-    }
+    ///
+    /// This is 100% safe with zero memory leaks and no unsafe code.
+    fn from_data(data: Vec<u8>) -> Result<Self, teehistorian::Error> {
+        let data_box = data.into_boxed_slice();
 
-    /// Initialize parser lazily to avoid lifetime issues
-    fn get_parser(&mut self) -> Result<&mut Th<&'static [u8]>, teehistorian::Error> {
-        if self.parser.is_none() {
-            let static_data: &'static [u8] = Box::leak(self.data.clone().into_boxed_slice());
-            self.parser = Some(Th::parse(static_data)?);
+        // Try to build the self-referencing struct
+        TeehistorianParserInnerTryBuilder {
+            data: data_box,
+            parser_builder: |data: &Box<[u8]>| Th::parse(data.as_ref()),
         }
-        Ok(self.parser.as_mut().unwrap())
+        .try_build()
     }
 
     /// Get the next chunk from the parser
     fn next_chunk(&mut self) -> Result<Option<Chunk<'_>>, teehistorian::Error> {
-        let parser = self.get_parser()?;
-        match parser.next_chunk() {
+        self.with_parser_mut(|parser| match parser.next_chunk() {
             Ok(chunk) => Ok(Some(chunk)),
             Err(e) if e.is_eof() => Ok(None),
             Err(e) => Err(e),
-        }
+        })
     }
 
     /// Get header data
-    fn header(&mut self) -> Result<Vec<u8>, teehistorian::Error> {
-        let parser = self.get_parser()?;
-        Ok(parser.header()?.to_vec())
+    fn get_header(&mut self) -> Result<Vec<u8>, teehistorian::Error> {
+        self.with_parser_mut(|parser| Ok(parser.header()?.to_vec()))
     }
 }
 
@@ -98,13 +107,8 @@ impl PyTeehistorian {
             .into());
         }
 
-        let mut parser = TeehistorianParserInner::new(data.to_vec()).map_err(|e| {
+        let parser = TeehistorianParserInner::from_data(data.to_vec()).map_err(|e| {
             TeehistorianParseError::Parse(format!("Failed to initialize parser: {}", e))
-        })?;
-
-        // Try to parse the header to validate the file format
-        parser.header().map_err(|e| {
-            TeehistorianParseError::Parse(format!("Invalid teehistorian file format: {}", e))
         })?;
 
         Ok(PyTeehistorian {
@@ -157,7 +161,7 @@ impl PyTeehistorian {
     fn header(&mut self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         let header_bytes = self
             .inner
-            .header()
+            .get_header()
             .map_err(|e| TeehistorianParseError::Header(e.to_string()))?;
 
         Ok(PyBytes::new(py, &header_bytes).into())
@@ -252,12 +256,6 @@ fn _rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
         "TeehistorianError",
         m.py().get_type::<errors::TeehistorianError>(),
     )?;
-    m.add("ParseError", m.py().get_type::<errors::ParseError>())?;
-    m.add(
-        "ValidationError",
-        m.py().get_type::<errors::ValidationError>(),
-    )?;
-    m.add("FileError", m.py().get_type::<errors::FileError>())?;
 
     // Add main parser class
     m.add_class::<PyTeehistorian>()?;
@@ -298,6 +296,9 @@ fn _rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyUnknown>()?;
     m.add_class::<PyCustomChunk>()?;
     m.add_class::<PyGeneric>()?;
+
+    // Add writer class (at end to debug export issue)
+    m.add_class::<PyTeehistorianWriter>()?;
 
     Ok(())
 }

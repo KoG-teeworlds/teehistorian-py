@@ -31,6 +31,13 @@ create_exception!(
     "Exception for file I/O errors"
 );
 
+create_exception!(
+    teehistorian_py,
+    WriteError,
+    TeehistorianError,
+    "Exception for writing errors"
+);
+
 /// Error enum for all possible errors in the library
 #[derive(Debug, Error)]
 pub enum TeehistorianParseError {
@@ -53,6 +60,14 @@ pub enum TeehistorianParseError {
     /// Handler-related errors
     #[error("Handler error: {0}")]
     Handler(String),
+
+    /// File I/O errors
+    #[error("File error: {0}")]
+    File(String),
+
+    /// Writing errors
+    #[error("Write error: {0}")]
+    Write(String),
 
     /// IO errors
     #[error("IO error: {0}")]
@@ -78,7 +93,10 @@ impl From<TeehistorianParseError> for PyErr {
                 ParseError::new_err(err.to_string())
             }
             TeehistorianParseError::Validation(_) => ValidationError::new_err(err.to_string()),
-            TeehistorianParseError::Io(_) => FileError::new_err(err.to_string()),
+            TeehistorianParseError::File(_) | TeehistorianParseError::Io(_) => {
+                FileError::new_err(err.to_string())
+            }
+            TeehistorianParseError::Write(_) => WriteError::new_err(err.to_string()),
             _ => {
                 // All other errors become base TeehistorianError exceptions
                 TeehistorianError::new_err(err.to_string())

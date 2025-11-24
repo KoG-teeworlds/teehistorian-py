@@ -53,9 +53,6 @@ def calculate_uuid(name: str) -> str:
         >>> calculate_uuid('kog-one-login@kog.tw')
         'a1b2c3d4-e5f6-3789-8abc-def012345678'
     """
-    if not name:
-        return "invalid-uuid"
-
     md5 = hashlib.md5()
     md5.update(TEEWORLDS_NAMESPACE)
     md5.update(name.encode("utf-8"))

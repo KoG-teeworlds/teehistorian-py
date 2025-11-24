@@ -113,8 +113,8 @@ impl<'a> ChunkConverter<'a> {
 
             // Input events
             Chunk::InputNew(input_new) => {
-                let input_str = format!("{:?}", input_new.input);
-                let obj = PyInputNew::new(input_new.cid, input_str);
+                let input_vec = input_new.input.to_vec();
+                let obj = PyInputNew::new(input_new.cid, input_vec);
                 Ok(Py::new(py, obj)?.into())
             }
 
@@ -174,8 +174,11 @@ impl<'a> ChunkConverter<'a> {
             }
 
             Chunk::TeamLoadSuccess(team_load) => {
-                let save_str = format!("{:?}", team_load.save);
-                let obj = PyTeamLoadSuccess::new(team_load.team, save_str);
+                let save_id_str = team_load.save_id.to_string();
+                let save_str = String::from_utf8_lossy(team_load.save)
+                    .trim_end_matches('\0')
+                    .to_string();
+                let obj = PyTeamLoadSuccess::new(team_load.team, save_id_str, save_str);
                 Ok(Py::new(py, obj)?.into())
             }
 

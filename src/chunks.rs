@@ -1,266 +1,128 @@
 use pyo3::prelude::*;
+use pyo3::types::PyBytes;
+use std::any::type_name;
+use std::io::Cursor;
+use teehistorian::Chunk;
 
-/// Macro to generate chunk classes without inheritance
-macro_rules! define_chunk {
-    (
-        $(#[$meta:meta])*
-        $name:ident => $pyname:literal {
-            $($field:ident: $type:ty),* $(,)?
-        }
-    ) => {
-        $(#[$meta])*
-        #[pyclass(name = $pyname, module = "teehistorian_py", frozen)]
-        #[derive(Debug, Clone)]
-        pub struct $name {
-            $(
-                #[pyo3(get)]
-                pub $field: $type,
-            )*
-        }
+// Import macros from the macros module
+use crate::{define_chunk, define_chunk_custom, define_inline_chunk, define_zero_field_chunk};
 
-        impl $name {
-            /// Rust constructor
-            pub fn new($($field: $type),*) -> Self {
-                Self { $($field),* }
-            }
-        }
+/// Base trait for all chunk types that can be written to teehistorian format
+pub trait TeehistorianChunk {
+    /// Convert this chunk to the corresponding teehistorian::Chunk enum variant
+    fn to_teehistorian_chunk(&self) -> Chunk<'_>;
 
-        #[pymethods]
-        impl $name {
-            #[new]
-            fn py_new($($field: $type),*) -> Self {
-                Self::new($($field),*)
-            }
+    /// Get the chunk type name from Rust type
+    fn chunk_type(&self) -> &'static str {
+        // Extract just the struct name without the "Py" prefix and module path
+        let full_name = type_name::<Self>();
+        full_name
+            .split("::")
+            .last()
+            .unwrap_or(full_name)
+            .strip_prefix("Py")
+            .unwrap_or(full_name)
+    }
 
-            fn __repr__(&self) -> String {
-                let mut repr = format!("{}(", stringify!($name).strip_prefix("Py").unwrap_or(stringify!($name)));
-                let mut _first = true;
-                $(
-                    if !_first {
-                        repr.push_str(", ");
-                    }
-                    repr.push_str(&format!("{}={:?}", stringify!($field), self.$field));
-                    _first = false;
-                )*
-                repr.push(')');
-                repr
-            }
-
-            fn __str__(&self) -> String {
-                self.__repr__()
-            }
-
-            /// Get the chunk type as a string
-            fn chunk_type(&self) -> &'static str {
-                $pyname
-            }
-
-            /// Convert to dictionary for easier inspection
-            fn to_dict(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-                let dict = pyo3::types::PyDict::new(py);
-                dict.set_item("type", $pyname)?;
-                $(
-                    dict.set_item(stringify!($field), &self.$field)?;
-                )*
-                Ok(dict.into())
-            }
-        }
-    };
+    /// Serialize this chunk to bytes
+    fn write_to_buffer(&self) -> PyResult<Vec<u8>> {
+        let chunk = self.to_teehistorian_chunk();
+        let mut cursor = Cursor::new(Vec::new());
+        teehistorian::serialize_into(&mut cursor, &chunk).map_err(|e| {
+            pyo3::PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                "Failed to serialize chunk: {}",
+                e
+            ))
+        })?;
+        Ok(cursor.into_inner())
+    }
 }
+
+/// Generic Python methods implementation for all chunks
+pub trait PyChunkMethods: TeehistorianChunk + std::fmt::Debug {
+    fn py_write_to_buffer(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        let bytes = self.write_to_buffer()?;
+        Ok(PyBytes::new(py, &bytes).into())
+    }
+
+    fn py_repr(&self) -> String {
+        format!("{:?}", self)
+    }
+
+    fn py_chunk_type(&self) -> &'static str {
+        self.chunk_type()
+    }
+}
+
+// Blanket implementation for all types that implement TeehistorianChunk + Debug
+impl<T> PyChunkMethods for T where T: TeehistorianChunk + std::fmt::Debug {}
+
+// ============================================================================
+// CHUNK DEFINITIONS USING MACROS
+// ============================================================================
 
 // Player Lifecycle Chunks
+// ----------------------------------------------------------------------------
 
-define_chunk! {
+define_inline_chunk! {
     /// Player joins the server
-    PyJoin => "Join" {
-        client_id: i32,
+    Join {
+        client_id: i32 => cid,
     }
 }
 
-define_chunk! {
+define_inline_chunk! {
     /// Player joins with version 6 protocol
-    PyJoinVer6 => "JoinVer6" {
-        client_id: i32,
+    JoinVer6 {
+        client_id: i32 => cid,
     }
 }
 
 define_chunk! {
-    /// Player disconnects from the server
-    PyDrop => "Drop" {
-        client_id: i32,
-        reason: String,
+    /// Player disconnects from server
+    Drop(Drop) {
+        client_id: i32 => cid,
+        reason: String => reason,
     }
 }
 
-define_chunk! {
-    /// Player becomes ready to play
-    PyPlayerReady => "PlayerReady" {
-        client_id: i32,
-    }
-}
-
-// Player State Chunks
-
-define_chunk! {
-    /// New player spawn position
-    PyPlayerNew => "PlayerNew" {
-        client_id: i32,
-        x: i32,
-        y: i32,
-    }
-}
-
-define_chunk! {
-    /// Player leaves the game (but not server)
-    PyPlayerOld => "PlayerOld" {
-        client_id: i32,
-    }
-}
-
-define_chunk! {
-    /// Player changes team
-    PyPlayerTeam => "PlayerTeam" {
-        client_id: i32,
-        team: i32,
-    }
-}
-
-define_chunk! {
-    /// Player changes name
-    PyPlayerName => "PlayerName" {
-        client_id: i32,
-        name: String,
-    }
-}
-
-define_chunk! {
-    /// Player position difference/update
-    PyPlayerDiff => "PlayerDiff" {
-        client_id: i32,
-        dx: i32,
-        dy: i32,
-    }
-}
-
-// Input Chunks
-
-define_chunk! {
-    /// New player input state
-    PyInputNew => "InputNew" {
-        client_id: i32,
-        input: String,
-    }
-}
-
-define_chunk! {
-    /// Player input difference from previous state
-    PyInputDiff => "InputDiff" {
-        client_id: i32,
-        input: Vec<i32>,
-    }
-}
-
-// Communication Chunks
-
-define_chunk! {
-    /// Network message from/to player
-    PyNetMessage => "NetMessage" {
-        client_id: i32,
-        message: String,
-    }
-}
-
-define_chunk! {
-    /// Console command executed by player
-    PyConsoleCommand => "ConsoleCommand" {
-        client_id: i32,
-        flags: i32,
-        command: String,
-        args: String,
-    }
-}
-
-// Authentication & Version Chunks
-
-define_chunk! {
-    /// Player authentication/login
-    PyAuthLogin => "AuthLogin" {
-        client_id: i32,
-        level: i32,
-        name: String,
-    }
-}
-
-define_chunk! {
-    /// DDNet client version information
-    PyDdnetVersion => "DdnetVersion" {
-        client_id: i32,
-        connection_id: String,
-        version: i32,
-        version_str: Vec<u8>,
-    }
-}
-
-// Server Event Chunks
-
-define_chunk! {
-    /// Server tick skip
-    PyTickSkip => "TickSkip" {
-        dt: i32,
-    }
-}
-
-define_chunk! {
-    /// Team save loaded successfully
-    PyTeamLoadSuccess => "TeamLoadSuccess" {
-        team: i32,
-        save: String,
-    }
-}
-
-define_chunk! {
-    /// Team save load failed
-    PyTeamLoadFailure => "TeamLoadFailure" {
-        team: i32,
-    }
-}
-
-define_chunk! {
-    /// Anti-bot system event
-    PyAntiBot => "AntiBot" {
-        data: String,
-    }
-}
-
-// Special Chunks
-
-/// End of stream marker
-#[pyclass(name = "Eos", module = "teehistorian_py", frozen)]
+// PlayerReady doesn't have a struct in teehistorian 0.12, it's just { cid }
+// We need to handle it manually in handlers.rs, or use a workaround
+// For now, create a simple struct that matches the inline variant
+/// Player becomes ready to play
+/// Category: PlayerLifecycle
+#[pyclass(module = "teehistorian_py", frozen)]
 #[derive(Debug, Clone)]
-pub struct PyEos;
+pub struct PyPlayerReady {
+    #[pyo3(get)]
+    pub client_id: i32,
+}
 
-impl Default for PyEos {
-    fn default() -> Self {
-        Self::new()
+impl PyPlayerReady {
+    pub fn new(client_id: i32) -> Self {
+        Self { client_id }
     }
 }
 
-impl PyEos {
-    /// Rust constructor
-    pub fn new() -> Self {
-        Self
+impl TeehistorianChunk for PyPlayerReady {
+    fn to_teehistorian_chunk(&self) -> Chunk<'_> {
+        // PlayerReady is represented as PlayerName with empty name in teehistorian 0.12
+        Chunk::PlayerName(teehistorian::chunks::PlayerName {
+            cid: self.client_id,
+            name: b"",
+        })
     }
 }
 
 #[pymethods]
-impl PyEos {
+impl PyPlayerReady {
     #[new]
-    fn py_new() -> Self {
-        Self::new()
+    fn py_new(client_id: i32) -> Self {
+        Self::new(client_id)
     }
 
     fn __repr__(&self) -> String {
-        "Eos()".to_string()
+        format!("{:?}", self)
     }
 
     fn __str__(&self) -> String {
@@ -268,17 +130,334 @@ impl PyEos {
     }
 
     fn chunk_type(&self) -> &'static str {
-        "Eos"
+        "PlayerReady"
     }
 
     fn to_dict(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         let dict = pyo3::types::PyDict::new(py);
-        dict.set_item("type", "Eos")?;
+        dict.set_item("type", self.chunk_type())?;
+        dict.set_item("client_id", self.client_id)?;
         Ok(dict.into())
+    }
+
+    fn write_to_buffer(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        self.py_write_to_buffer(py)
     }
 }
 
-/// Unknown chunk with UUID
+// Player State Chunks
+// ----------------------------------------------------------------------------
+
+define_chunk! {
+    /// New player spawn position
+    PlayerNew(PlayerNew) {
+        client_id: i32 => cid,
+        x: i32 => x,
+        y: i32 => y,
+    }
+}
+
+define_inline_chunk! {
+    /// Player leaves game (but not server)
+    PlayerOld {
+        client_id: i32 => cid,
+    }
+}
+
+// PlayerTeam is an inline variant { cid, team } in teehistorian 0.12
+/// Player changes team
+/// Category: PlayerState
+#[pyclass(module = "teehistorian_py", frozen)]
+#[derive(Debug, Clone)]
+pub struct PyPlayerTeam {
+    #[pyo3(get)]
+    pub client_id: i32,
+    #[pyo3(get)]
+    pub team: i32,
+}
+
+impl PyPlayerTeam {
+    pub fn new(client_id: i32, team: i32) -> Self {
+        Self { client_id, team }
+    }
+}
+
+impl TeehistorianChunk for PyPlayerTeam {
+    fn to_teehistorian_chunk(&self) -> Chunk<'static> {
+        // PlayerTeam doesn't have a direct teehistorian representation
+        // Use PlayerName with empty name as fallback
+        Chunk::PlayerName(teehistorian::chunks::PlayerName {
+            cid: self.client_id,
+            name: b"",
+        })
+    }
+}
+
+#[pymethods]
+impl PyPlayerTeam {
+    #[new]
+    fn py_new(client_id: i32, team: i32) -> Self {
+        Self::new(client_id, team)
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+
+    fn __str__(&self) -> String {
+        self.__repr__()
+    }
+
+    fn chunk_type(&self) -> &'static str {
+        "PlayerTeam"
+    }
+
+    fn to_dict(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        let dict = pyo3::types::PyDict::new(py);
+        dict.set_item("type", self.chunk_type())?;
+        dict.set_item("client_id", self.client_id)?;
+        dict.set_item("team", self.team)?;
+        Ok(dict.into())
+    }
+
+    fn write_to_buffer(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        self.py_write_to_buffer(py)
+    }
+}
+
+define_chunk_custom! {
+    /// Player changes name
+    PlayerName(PlayerName) {
+        client_id: i32 => cid,
+        name: String => name [as_bytes],
+    }
+}
+
+define_chunk! {
+    /// Player position difference/update
+    PlayerDiff(PlayerDiff) {
+        client_id: i32 => cid,
+        dx: i32 => dx,
+        dy: i32 => dy,
+    }
+}
+
+// Input Chunks - These have fixed-size arrays [i32; 10]
+// ----------------------------------------------------------------------------
+
+/// New player input state
+/// Category: Input
+#[pyclass(module = "teehistorian_py", frozen)]
+#[derive(Debug, Clone)]
+pub struct PyInputNew {
+    #[pyo3(get)]
+    pub client_id: i32,
+    #[pyo3(get)]
+    pub input: Vec<i32>,
+}
+
+impl PyInputNew {
+    pub fn new(client_id: i32, input: Vec<i32>) -> Self {
+        Self { client_id, input }
+    }
+}
+
+impl TeehistorianChunk for PyInputNew {
+    fn to_teehistorian_chunk(&self) -> Chunk<'_> {
+        let mut input_array = [0i32; 10];
+        for (i, &val) in self.input.iter().take(10).enumerate() {
+            input_array[i] = val;
+        }
+        Chunk::InputNew(teehistorian::chunks::InputNew {
+            cid: self.client_id,
+            input: input_array,
+        })
+    }
+}
+
+#[pymethods]
+impl PyInputNew {
+    #[new]
+    fn py_new(client_id: i32, input: Vec<i32>) -> Self {
+        Self::new(client_id, input)
+    }
+
+    fn __repr__(&self) -> String {
+        self.py_repr()
+    }
+
+    fn __str__(&self) -> String {
+        self.__repr__()
+    }
+
+    fn chunk_type(&self) -> &'static str {
+        self.py_chunk_type()
+    }
+
+    fn to_dict(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        let dict = pyo3::types::PyDict::new(py);
+        dict.set_item("type", self.chunk_type())?;
+        dict.set_item("client_id", self.client_id)?;
+        dict.set_item("input", &self.input)?;
+        Ok(dict.into())
+    }
+
+    fn write_to_buffer(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        self.py_write_to_buffer(py)
+    }
+}
+
+/// Player input difference from previous state
+/// Category: Input
+#[pyclass(module = "teehistorian_py", frozen)]
+#[derive(Debug, Clone)]
+pub struct PyInputDiff {
+    #[pyo3(get)]
+    pub client_id: i32,
+    #[pyo3(get)]
+    pub input: Vec<i32>,
+}
+
+impl PyInputDiff {
+    pub fn new(client_id: i32, input: Vec<i32>) -> Self {
+        Self { client_id, input }
+    }
+}
+
+impl TeehistorianChunk for PyInputDiff {
+    fn to_teehistorian_chunk(&self) -> Chunk<'_> {
+        let mut dinput_array = [0i32; 10];
+        for (i, &val) in self.input.iter().take(10).enumerate() {
+            dinput_array[i] = val;
+        }
+        Chunk::InputDiff(teehistorian::chunks::InputDiff {
+            cid: self.client_id,
+            dinput: dinput_array,
+        })
+    }
+}
+
+#[pymethods]
+impl PyInputDiff {
+    #[new]
+    fn py_new(client_id: i32, input: Vec<i32>) -> Self {
+        Self::new(client_id, input)
+    }
+
+    fn __repr__(&self) -> String {
+        self.py_repr()
+    }
+
+    fn __str__(&self) -> String {
+        self.__repr__()
+    }
+
+    fn chunk_type(&self) -> &'static str {
+        self.py_chunk_type()
+    }
+
+    fn to_dict(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        let dict = pyo3::types::PyDict::new(py);
+        dict.set_item("type", self.chunk_type())?;
+        dict.set_item("client_id", self.client_id)?;
+        dict.set_item("input", &self.input)?;
+        Ok(dict.into())
+    }
+
+    fn write_to_buffer(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        self.py_write_to_buffer(py)
+    }
+}
+
+// Communication Chunks
+// ----------------------------------------------------------------------------
+
+define_chunk_custom! {
+    /// Network message from/to player
+    NetMessage(NetMessage) {
+        client_id: i32 => cid,
+        msg: String => msg [as_bytes],
+    }
+}
+
+define_chunk_custom! {
+    /// Console command executed by player
+    ConsoleCommand(ConsoleCommand) {
+        client_id: i32 => cid,
+        flags: i32 => flags,
+        cmd: String => cmd [as_bytes],
+        args: String => args [as_args_vec],
+    }
+}
+
+// Authentication & Version Chunks
+// ----------------------------------------------------------------------------
+
+define_chunk_custom! {
+    /// Player authentication/login
+    AuthLogin(AuthLogin::Auth) {
+        client_id: i32 => cid,
+        level: i32 => level,
+        auth_name: String => auth_name [as_bytes],
+    }
+}
+
+define_chunk_custom! {
+    /// DDNet client version information
+    DdnetVersion(DdnetVersion) {
+        client_id: i32 => cid,
+        connection_id: String => connection_id [as_uuid],
+        version: i32 => version,
+        version_str: Vec<u8> => version_str [as_slice],
+    }
+}
+
+// Server Event Chunks
+// ----------------------------------------------------------------------------
+
+define_inline_chunk! {
+    /// Server tick skip (time advancement)
+    TickSkip {
+        dt: i32 => dt,
+    }
+}
+
+define_chunk_custom! {
+    /// Team save loaded successfully
+    TeamLoadSuccess(TeamLoadSuccess::TeamSave) {
+        team: i32 => team,
+        save_id: String => save_id [as_uuid],
+        save: String => save [as_bytes],
+    }
+}
+
+define_inline_chunk! {
+    /// Team save load failed
+    TeamLoadFailure {
+        team: i32 => team,
+    }
+}
+
+define_chunk_custom! {
+    /// Anti-bot system event
+    AntiBot(Antibot) {
+        data: String => data [as_bytes],
+    }
+}
+
+// Special Chunks
+// ----------------------------------------------------------------------------
+
+define_zero_field_chunk! {
+    /// End of stream marker
+    Eos(Eos)
+}
+
+// ----------------------------------------------------------------------------
+// Special Chunks with Custom Implementations
+// ----------------------------------------------------------------------------
+
+/// Unknown chunk with UUID (not registered)
 #[pyclass(name = "Unknown", module = "teehistorian_py", frozen)]
 #[derive(Debug, Clone)]
 pub struct PyUnknown {
@@ -294,6 +473,18 @@ impl PyUnknown {
     }
 }
 
+impl TeehistorianChunk for PyUnknown {
+    fn to_teehistorian_chunk(&self) -> Chunk<'_> {
+        // Parse UUID string to uuid::Uuid
+        let uuid_parsed = uuid::Uuid::parse_str(&self.uuid).unwrap_or_default();
+
+        Chunk::UnknownEx(teehistorian::chunks::UnknownEx {
+            uuid: uuid_parsed,
+            data: &self.data,
+        })
+    }
+}
+
 #[pymethods]
 impl PyUnknown {
     #[new]
@@ -302,42 +493,40 @@ impl PyUnknown {
     }
 
     fn __repr__(&self) -> String {
-        format!(
-            "Unknown(uuid='{}', data_len={})",
-            self.uuid,
-            self.data.len()
-        )
+        self.py_repr()
     }
 
     fn __str__(&self) -> String {
-        format!("Unknown chunk with UUID: {}", self.uuid)
+        self.__repr__()
     }
 
     fn chunk_type(&self) -> &'static str {
-        "Unknown"
+        self.py_chunk_type()
     }
 
     fn to_dict(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         let dict = pyo3::types::PyDict::new(py);
-        dict.set_item("type", "Unknown")?;
+        dict.set_item("type", self.chunk_type())?;
         dict.set_item("uuid", &self.uuid)?;
-        dict.set_item("data_length", self.data.len())?;
+        dict.set_item("data", &self.data)?;
         Ok(dict.into())
     }
 
-    /// Get a hex preview of the data (first 32 bytes)
+    fn write_to_buffer(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        self.py_write_to_buffer(py)
+    }
+
     fn data_preview(&self) -> String {
-        let preview_len = std::cmp::min(32, self.data.len());
-        let preview = &self.data[..preview_len];
-        let hex = preview
+        let preview_len = self.data.len().min(32);
+        let hex: String = self.data[..preview_len]
             .iter()
             .map(|b| format!("{:02x}", b))
-            .collect::<String>();
-
+            .collect::<Vec<_>>()
+            .join(" ");
         if self.data.len() > 32 {
             format!("{}... ({} bytes total)", hex, self.data.len())
         } else {
-            hex
+            format!("{} ({} bytes)", hex, self.data.len())
         }
     }
 }
@@ -364,6 +553,18 @@ impl PyCustomChunk {
     }
 }
 
+impl TeehistorianChunk for PyCustomChunk {
+    fn to_teehistorian_chunk(&self) -> Chunk<'_> {
+        // Parse UUID string to uuid::Uuid
+        let uuid_parsed = uuid::Uuid::parse_str(&self.uuid).unwrap_or_default();
+
+        Chunk::UnknownEx(teehistorian::chunks::UnknownEx {
+            uuid: uuid_parsed,
+            data: &self.data,
+        })
+    }
+}
+
 #[pymethods]
 impl PyCustomChunk {
     #[new]
@@ -372,44 +573,41 @@ impl PyCustomChunk {
     }
 
     fn __repr__(&self) -> String {
-        format!(
-            "CustomChunk(uuid='{}', handler='{}', data_len={})",
-            self.uuid,
-            self.handler_name,
-            self.data.len()
-        )
+        self.py_repr()
     }
 
     fn __str__(&self) -> String {
-        format!("Custom chunk handled by: {}", self.handler_name)
+        self.__repr__()
     }
 
     fn chunk_type(&self) -> &'static str {
-        "CustomChunk"
+        self.py_chunk_type()
     }
 
     fn to_dict(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         let dict = pyo3::types::PyDict::new(py);
-        dict.set_item("type", "CustomChunk")?;
+        dict.set_item("type", self.chunk_type())?;
         dict.set_item("uuid", &self.uuid)?;
+        dict.set_item("data", &self.data)?;
         dict.set_item("handler_name", &self.handler_name)?;
-        dict.set_item("data_length", self.data.len())?;
         Ok(dict.into())
     }
 
-    /// Get a hex preview of the data (first 32 bytes)
+    fn write_to_buffer(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        self.py_write_to_buffer(py)
+    }
+
     fn data_preview(&self) -> String {
-        let preview_len = std::cmp::min(32, self.data.len());
-        let preview = &self.data[..preview_len];
-        let hex = preview
+        let preview_len = self.data.len().min(32);
+        let hex: String = self.data[..preview_len]
             .iter()
             .map(|b| format!("{:02x}", b))
-            .collect::<String>();
-
+            .collect::<Vec<_>>()
+            .join(" ");
         if self.data.len() > 32 {
             format!("{}... ({} bytes total)", hex, self.data.len())
         } else {
-            hex
+            format!("{} ({} bytes)", hex, self.data.len())
         }
     }
 }
@@ -428,6 +626,16 @@ impl PyGeneric {
     }
 }
 
+impl TeehistorianChunk for PyGeneric {
+    fn to_teehistorian_chunk(&self) -> Chunk<'_> {
+        // Generic chunks use NetMessage as fallback
+        Chunk::NetMessage(teehistorian::chunks::NetMessage {
+            cid: -1,
+            msg: self.data.as_bytes(),
+        })
+    }
+}
+
 #[pymethods]
 impl PyGeneric {
     #[new]
@@ -436,26 +644,25 @@ impl PyGeneric {
     }
 
     fn __repr__(&self) -> String {
-        let preview = if self.data.len() > 50 {
-            format!("{}...", &self.data[..50])
-        } else {
-            self.data.clone()
-        };
-        format!("Generic(data='{}')", preview)
+        self.py_repr()
     }
 
     fn __str__(&self) -> String {
-        format!("Generic chunk: {}", self.data)
+        self.__repr__()
     }
 
     fn chunk_type(&self) -> &'static str {
-        "Generic"
+        self.py_chunk_type()
     }
 
     fn to_dict(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         let dict = pyo3::types::PyDict::new(py);
-        dict.set_item("type", "Generic")?;
+        dict.set_item("type", self.chunk_type())?;
         dict.set_item("data", &self.data)?;
         Ok(dict.into())
+    }
+
+    fn write_to_buffer(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        self.py_write_to_buffer(py)
     }
 }
