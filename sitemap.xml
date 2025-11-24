@@ -2,42 +2,42 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://kog-teeworlds.github.io/teehistorian-py/</loc>
-         <lastmod>2025-11-17</lastmod>
+         <lastmod>2025-11-24</lastmod>
     </url>
     <url>
          <loc>https://kog-teeworlds.github.io/teehistorian-py/contributing/</loc>
-         <lastmod>2025-11-17</lastmod>
+         <lastmod>2025-11-24</lastmod>
     </url>
     <url>
          <loc>https://kog-teeworlds.github.io/teehistorian-py/api/chunks/</loc>
-         <lastmod>2025-11-17</lastmod>
+         <lastmod>2025-11-24</lastmod>
     </url>
     <url>
          <loc>https://kog-teeworlds.github.io/teehistorian-py/api/errors/</loc>
-         <lastmod>2025-11-17</lastmod>
+         <lastmod>2025-11-24</lastmod>
     </url>
     <url>
          <loc>https://kog-teeworlds.github.io/teehistorian-py/api/parser/</loc>
-         <lastmod>2025-11-17</lastmod>
+         <lastmod>2025-11-24</lastmod>
     </url>
     <url>
          <loc>https://kog-teeworlds.github.io/teehistorian-py/getting-started/installation/</loc>
-         <lastmod>2025-11-17</lastmod>
+         <lastmod>2025-11-24</lastmod>
     </url>
     <url>
          <loc>https://kog-teeworlds.github.io/teehistorian-py/getting-started/quickstart/</loc>
-         <lastmod>2025-11-17</lastmod>
+         <lastmod>2025-11-24</lastmod>
     </url>
     <url>
          <loc>https://kog-teeworlds.github.io/teehistorian-py/guide/basic-usage/</loc>
-         <lastmod>2025-11-17</lastmod>
+         <lastmod>2025-11-24</lastmod>
     </url>
     <url>
          <loc>https://kog-teeworlds.github.io/teehistorian-py/guide/chunk-types/</loc>
-         <lastmod>2025-11-17</lastmod>
+         <lastmod>2025-11-24</lastmod>
     </url>
     <url>
          <loc>https://kog-teeworlds.github.io/teehistorian-py/guide/error-handling/</loc>
-         <lastmod>2025-11-17</lastmod>
+         <lastmod>2025-11-24</lastmod>
     </url>
 </urlset>
