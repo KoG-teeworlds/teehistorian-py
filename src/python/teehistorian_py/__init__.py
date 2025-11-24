@@ -20,10 +20,10 @@ Example:
 
 from __future__ import annotations
 
-import logging
-import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Union
+
+from .utils import calculate_uuid, format_uuid_from_bytes
 
 if TYPE_CHECKING:
     from os import PathLike
@@ -121,9 +121,6 @@ class WriteError(TeehistorianError):
 
 # Alias for compatibility
 TeehistorianParser = Teehistorian
-
-# Re-export utilities for convenience
-from .utils import calculate_uuid, format_uuid_from_bytes
 
 __version__ = "2.0.0"
 
