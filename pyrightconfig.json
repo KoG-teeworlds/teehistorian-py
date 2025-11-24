@@ -4,6 +4,7 @@
   "reportMissingImports": true,
   "reportMissingTypeStubs": false,
   "reportAttributeAccessIssue": "warning",
+  "reportUnusedCallResult": "warning",
   "pythonVersion": "3.12",
   "pythonPlatform": "All",
   "stubPath": ".",
