@@ -284,14 +284,14 @@ class TestWriterCreation:
     def test_create_writer_empty(self):
         """Test new writer starts empty."""
         writer = th.create()
-        assert writer.size() == 0
-        assert writer.is_empty()
+        assert writer.size == 0
+        assert writer.is_empty
 
     def test_create_writer_with_headers(self):
         """Test creating writer with initial headers."""
         writer = th.create(server_name="Test Server", comment="Test comment")
-        assert writer.size() == 0  # Headers don't count until written
-        assert writer.is_empty()
+        assert writer.size == 0  # Headers don't count until written
+        assert writer.is_empty
 
     def test_writer_repr(self):
         """Test writer string representation."""
@@ -361,15 +361,15 @@ class TestWriterChunks:
         writer = th.create()
         result = writer.write(th.Join(0))
         assert result is writer
-        assert writer.size() > 0
+        assert writer.size > 0
 
     def test_write_join_chunks(self):
         """Test writing player join chunks."""
         writer = th.create()
         writer.write(th.Join(0))
         writer.write(th.JoinVer6(1))
-        assert writer.size() > 0
-        assert not writer.is_empty()
+        assert writer.size > 0
+        assert not writer.is_empty
 
     def test_write_player_chunks(self):
         """Test writing player-related chunks."""
@@ -382,7 +382,7 @@ class TestWriterChunks:
         writer.write(th.PlayerDiff(0, 5, -3))
         writer.write(th.PlayerOld(0))
         writer.write(th.Drop(0, "quit"))
-        assert writer.size() > 0
+        assert writer.size > 0
 
     def test_write_server_chunks(self):
         """Test writing server event chunks."""
@@ -395,21 +395,21 @@ class TestWriterChunks:
         )
         writer.write(th.TeamLoadFailure(2))
         writer.write(th.AntiBot("detection_event"))
-        assert writer.size() > 0
+        assert writer.size > 0
 
     def test_write_communication_chunks(self):
         """Test writing communication chunks."""
         writer = th.create()
         writer.write(th.NetMessage(0, "Hello World"))
         writer.write(th.ConsoleCommand(0, 1, "say", "test message"))
-        assert writer.size() > 0
+        assert writer.size > 0
 
     def test_write_eos_chunk(self):
         """Test writing End of Stream chunk."""
         writer = th.create()
         writer.write(th.Join(0))
         writer.write(th.Eos())
-        assert writer.size() > 0
+        assert writer.size > 0
 
     def test_write_multiple_chunks_chaining(self):
         """Test writing multiple chunks with method chaining."""
@@ -420,7 +420,7 @@ class TestWriterChunks:
             .write(th.PlayerNew(0, 100, 200))
             .write(th.Eos())
         )
-        assert writer.size() > 0
+        assert writer.size > 0
 
     def test_write_all_batch(self):
         """Test writing multiple chunks in batch."""
@@ -434,7 +434,7 @@ class TestWriterChunks:
         ]
         result = writer.write_all(chunks)
         assert result is writer
-        assert writer.size() > 0
+        assert writer.size > 0
 
 
 # ============================================================================
@@ -518,42 +518,42 @@ class TestWriterStateManagement:
     def test_size_increases_with_writes(self):
         """Test that size increases as chunks are written."""
         writer = th.create()
-        initial_size = writer.size()
+        initial_size = writer.size
         writer.write(th.Join(0))
-        after_write = writer.size()
+        after_write = writer.size
         assert after_write > initial_size, "Size should increase after writing chunks"
 
     def test_is_empty_flag(self):
         """Test is_empty() flag."""
         writer = th.create()
-        assert writer.is_empty()
+        assert writer.is_empty
         writer.write(th.Join(0))
-        assert not writer.is_empty()
+        assert not writer.is_empty
 
     def test_reset_clears_data(self):
         """Test reset() clears all data."""
         writer = th.create()
         writer.write(th.Join(0))
         writer.write(th.PlayerName(0, "Player"))
-        assert writer.size() > 0
-        assert not writer.is_empty()
+        assert writer.size > 0
+        assert not writer.is_empty
 
         writer.reset()
-        assert writer.size() == 0
-        assert writer.is_empty()
+        assert writer.size == 0
+        assert writer.is_empty
 
     def test_reset_allows_reuse(self):
         """Test writer can be reused after reset."""
         writer = th.create()
         writer.write(th.Join(0))
-        _ = writer.size()  # Store first size (not used in assertion)
+        _ = writer.size  # Store first size (not used in assertion)
 
         writer.reset()
-        assert writer.is_empty()
+        assert writer.is_empty
 
         writer.write(th.Join(1))
         writer.write(th.PlayerName(1, "Player2"))
-        assert writer.size() > 0
+        assert writer.size > 0
 
 
 # ============================================================================
@@ -569,7 +569,7 @@ class TestWriterContextManager:
         with th.create() as writer:
             writer.write(th.Join(0))
             writer.write(th.Eos())
-            assert writer.size() > 0
+            assert writer.size > 0
 
     def test_context_manager_with_headers(self):
         """Test context manager with header setup."""
@@ -583,7 +583,7 @@ class TestWriterContextManager:
         with th.create() as writer:
             writer.set_header("server_name", "Test")
             writer.write(th.Join(0))
-            size_in_context = writer.size()
+            size_in_context = writer.size
 
         # Writer should be in closed state after exiting
         assert size_in_context > 0
@@ -597,7 +597,7 @@ class TestWriterContextManager:
             .write(th.PlayerName(42, "ChainTest"))
             .write(th.Eos())
         ) as writer:
-            assert writer.size() > 0
+            assert writer.size > 0
 
 
 # ============================================================================
@@ -630,7 +630,7 @@ class TestIntegration:
                 writer.write(th.PlayerOld(i))
                 writer.write(th.Drop(i, "finish"))
 
-            assert writer.size() > 0
+            assert writer.size > 0
 
     def test_batch_creation_performance(self):
         """Test batch creation of many chunks."""
@@ -646,7 +646,7 @@ class TestIntegration:
 
         writer = th.create()
         writer.write_all(chunks)
-        assert writer.size() > 0
+        assert writer.size > 0
 
     def test_headers_and_content_combination(self):
         """Test combining headers with content."""
@@ -675,21 +675,21 @@ class TestEdgeCases:
         """Test sequence with minimal chunks."""
         writer = th.create()
         writer.write(th.Eos())
-        assert writer.size() > 0
+        assert writer.size > 0
 
     def test_special_characters_in_headers(self):
         """Test headers with special characters."""
         writer = th.create()
         writer.set_header("comment", "Special: !@#$%^&*()[]{}\"'")
         writer.write(th.Join(0))
-        assert writer.size() > 0
+        assert writer.size > 0
 
     def test_special_characters_in_names(self):
         """Test player names with special characters."""
         writer = th.create()
         writer.write(th.Join(0))
         writer.write(th.PlayerName(0, "Player™©®"))
-        assert writer.size() > 0
+        assert writer.size > 0
 
     def test_large_message_content(self):
         """Test writing large messages."""
@@ -697,11 +697,11 @@ class TestEdgeCases:
         writer.write(th.Join(0))
         large_message = "x" * 10000
         writer.write(th.NetMessage(0, large_message))
-        assert writer.size() > 0
+        assert writer.size > 0
 
     def test_many_tick_skips(self):
         """Test many tick skip events."""
         writer = th.create()
         for _ in range(1000):
             writer.write(th.TickSkip(1))
-        assert writer.size() > 0
+        assert writer.size > 0

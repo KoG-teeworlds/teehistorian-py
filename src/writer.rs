@@ -1,4 +1,3 @@
-use chrono::Utc;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 use serde_json::{Value, json};
@@ -42,7 +41,6 @@ impl PyTeehistorianWriter {
             "version": "2",
             "version_minor": "9",
             "comment": "teehistorian-py",
-            "start_time": Utc::now().to_rfc3339(),
             "game_uuid": Uuid::nil().to_string(),
             "prev_game_uuid": Uuid::nil().to_string(),
             "server_version": "teehistorian-py 2.0.0",
@@ -290,7 +288,6 @@ impl PyTeehistorianWriter {
             "version": "2",
             "version_minor": "9",
             "comment": "teehistorian-py",
-            "start_time": Utc::now().to_rfc3339(),
             "game_uuid": Uuid::nil().to_string(),
             "prev_game_uuid": Uuid::nil().to_string(),
             "server_version": "teehistorian-py 2.0.0",

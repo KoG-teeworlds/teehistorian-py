@@ -1,5 +1,7 @@
 /target
 .teehistorian
+*.teehistorian
+!tests/**/*.teehistorian
 **/*.rs.bk
 .DS_Store
 *.pyc

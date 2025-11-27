@@ -189,10 +189,16 @@ class TeehistorianWriter:
     following Python best practices.
     """
 
-    def __init__(self):
-        """Initialize a new teehistorian writer."""
+    def __init__(self, file: Any = None):
+        """Initialize a new teehistorian writer.
+
+        Args:
+            file: Optional file-like object to write to. If provided, data will be
+                  automatically written to this file after each write operation.
+        """
         self._writer = RustTeehistorianWriter()
         self._closed = False
+        self._file = file
 
     def __enter__(self) -> "TeehistorianWriter":
         """Enter the context manager."""
@@ -207,6 +213,9 @@ class TeehistorianWriter:
             except Exception:
                 pass  # Don't fail if EOS was already written
             self._closed = True
+            # Write to file if one was provided
+            if self._file is not None:
+                self.writeto(self._file)
 
     def write(self, chunk: Any) -> "TeehistorianWriter":
         """
@@ -224,6 +233,12 @@ class TeehistorianWriter:
         if self._closed:
             raise ValueError("Cannot write to closed writer")
         self._writer.write(chunk)
+        # If a file was provided, flush data to it after each write
+        if self._file is not None:
+            try:
+                self.writeto(self._file)
+            except Exception:
+                pass
         return self
 
     def write_all(self, chunks: Iterable[Any]) -> "TeehistorianWriter":
@@ -333,10 +348,12 @@ class TeehistorianWriter:
         """
         self._writer.writeto(file)
 
+    @property
     def size(self) -> int:
         """Get the current size of the teehistorian data in bytes."""
         return self._writer.size()
 
+    @property
     def is_empty(self) -> bool:
         """Check if any data has been written."""
         return self._writer.is_empty()
@@ -347,10 +364,8 @@ class TeehistorianWriter:
         self._closed = False
 
     def __repr__(self) -> str:
-        status = (
-            "closed" if self._closed else ("empty" if self.is_empty() else "active")
-        )
-        return f"TeehistorianWriter(size={self.size()}, status={status})"
+        status = "closed" if self._closed else ("empty" if self.is_empty else "active")
+        return f"TeehistorianWriter(size={self.size}, status={status})"
 
 
 def create(**headers: str) -> TeehistorianWriter:

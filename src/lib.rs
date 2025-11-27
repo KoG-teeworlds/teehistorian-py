@@ -196,6 +196,17 @@ impl PyTeehistorian {
         }
     }
 
+    /// Get the next chunk from the parser (for backward compatibility)
+    ///
+    /// This method provides a convenient way to manually iterate through chunks
+    /// without using Python's iterator protocol.
+    ///
+    /// # Returns
+    /// Next chunk as Python object or None at EOF
+    fn next_chunk(&mut self, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
+        self.__next__(py)
+    }
+
     /// Get the current chunk count
     #[getter]
     fn chunk_count(&self) -> usize {

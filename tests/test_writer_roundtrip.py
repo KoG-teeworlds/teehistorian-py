@@ -77,7 +77,7 @@ class TestWriterChunks:
     def test_write_player_new_chunk(self):
         """Test writing a PlayerNew chunk."""
         writer = th.TeehistorianWriter()
-        writer.write(th.PlayerNew(0, "TestPlayer", 0))
+        writer.write(th.PlayerNew(0, 100, 200))
         data = writer.getvalue()
         assert len(data) > 0
 
