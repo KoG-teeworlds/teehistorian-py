@@ -75,6 +75,14 @@ debug = true
 [profile.bench]
 inherits = "release"
 
+[[test]]
+name = "parser_integration"
+path = "tests/rust/parser_integration.rs"
+
+[[test]]
+name = "writer_integration"
+path = "tests/rust/writer_integration.rs"
+
 [package.metadata.maturin]
 python-source = "src/python"
 module-name = "teehistorian_py._rust"

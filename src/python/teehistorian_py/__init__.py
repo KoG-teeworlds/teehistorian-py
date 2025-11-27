@@ -21,7 +21,7 @@ Example:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Any, Iterable, Union
 
 from .utils import calculate_uuid, format_uuid_from_bytes
 
@@ -198,7 +198,7 @@ class TeehistorianWriter:
         """Enter the context manager."""
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Exit the context manager, automatically writing EOS if not already present."""
         if not self._closed:
             # Automatically write EOS chunk when exiting context
@@ -208,7 +208,7 @@ class TeehistorianWriter:
                 pass  # Don't fail if EOS was already written
             self._closed = True
 
-    def write(self, chunk) -> "TeehistorianWriter":
+    def write(self, chunk: Any) -> "TeehistorianWriter":
         """
         Write a chunk to the teehistorian file.
 
@@ -226,7 +226,7 @@ class TeehistorianWriter:
         self._writer.write(chunk)
         return self
 
-    def write_all(self, chunks) -> "TeehistorianWriter":
+    def write_all(self, chunks: Iterable[Any]) -> "TeehistorianWriter":
         """
         Write multiple chunks at once.
 
@@ -274,7 +274,7 @@ class TeehistorianWriter:
         """
         return self._writer.get_header(key)
 
-    def update_headers(self, headers: dict) -> "TeehistorianWriter":
+    def update_headers(self, headers: dict[str, str]) -> "TeehistorianWriter":
         """
         Update multiple header fields.
 
@@ -320,7 +320,7 @@ class TeehistorianWriter:
         """
         return self._writer.getvalue()
 
-    def writeto(self, file) -> None:
+    def writeto(self, file: Any) -> None:
         """
         Write the teehistorian to a file-like object.
 
@@ -353,7 +353,7 @@ class TeehistorianWriter:
         return f"TeehistorianWriter(size={self.size()}, status={status})"
 
 
-def create(**headers) -> TeehistorianWriter:
+def create(**headers: str) -> TeehistorianWriter:
     """
     Create a new teehistorian writer.
 

@@ -24,7 +24,7 @@ jobs:
       id-token: write # For OIDC token access
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
 
     steps:
       - uses: actions/checkout@v4
@@ -67,6 +67,9 @@ jobs:
       - name: Run Clippy
         run: cargo clippy -- -D warnings
 
+      - name: Run Rust integration tests
+        run: cargo test --test '*' --verbose
+
       - name: Build Python extension
         run: |
           source .venv/bin/activate
@@ -75,7 +78,7 @@ jobs:
       - name: Run Python tests
         run: |
           source .venv/bin/activate
-          pytest tests/ -v --cov=src/python/teehistorian_py --cov-report=xml --cov-report=html --cov-report=term-missing --cov-branch
+          pytest tests/test_*.py -v --cov=src/python/teehistorian_py --cov-report=xml --cov-report=html --cov-report=term-missing --cov-branch
 
       - name: Upload coverage to Codecov
         if: matrix.python-version == '3.11'

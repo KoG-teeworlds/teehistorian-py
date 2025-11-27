@@ -125,7 +125,13 @@ impl PyTeehistorianWriter {
             .into());
         }
 
-        self.header_data[key] = Value::String(value);
+        // Try to parse the value as JSON; if it fails, treat as a plain string
+        let json_value = match serde_json::from_str::<Value>(&value) {
+            Ok(v) => v,
+            Err(_) => Value::String(value),
+        };
+
+        self.header_data[key] = json_value;
         Ok(())
     }
 
@@ -170,7 +176,14 @@ impl PyTeehistorianWriter {
         for (key, value) in headers.iter() {
             let key_str = key.extract::<String>()?;
             let value_str = value.extract::<String>()?;
-            self.header_data[key_str] = Value::String(value_str);
+
+            // Try to parse the value as JSON; if it fails, treat as a plain string
+            let json_value = match serde_json::from_str::<Value>(&value_str) {
+                Ok(v) => v,
+                Err(_) => Value::String(value_str),
+            };
+
+            self.header_data[key_str] = json_value;
         }
 
         Ok(())
@@ -374,5 +387,37 @@ mod tests {
         writer.reset();
         assert!(writer.is_empty());
         assert!(!writer.header_written);
+    }
+
+    #[test]
+    fn test_json_header_parsing() {
+        let mut writer = PyTeehistorianWriter::new(None);
+
+        // Test that JSON strings are parsed correctly
+        let json_config = r#"{"sv_motd":"Test","sv_name":"Server"}"#;
+        writer
+            .set_header("config".to_string(), json_config.to_string())
+            .unwrap();
+
+        // Verify that config is stored as a JSON object, not a string
+        assert!(writer.header_data["config"].is_object());
+        assert_eq!(
+            writer.header_data["config"]["sv_motd"].as_str(),
+            Some("Test")
+        );
+    }
+
+    #[test]
+    fn test_plain_string_header() {
+        let mut writer = PyTeehistorianWriter::new(None);
+
+        // Test that plain strings are stored as strings
+        writer
+            .set_header("comment".to_string(), "My comment".to_string())
+            .unwrap();
+
+        // Verify that comment is stored as a string
+        assert!(writer.header_data["comment"].is_string());
+        assert_eq!(writer.header_data["comment"].as_str(), Some("My comment"));
     }
 }
