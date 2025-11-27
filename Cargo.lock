@@ -450,7 +450,7 @@ dependencies = [
 
 [[package]]
 name = "teehistorian-py"
-version = "2025.2.1"
+version = "2025.2.2"
 dependencies = [
  "chrono",
  "indexmap",

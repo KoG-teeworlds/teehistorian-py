@@ -1,6 +1,6 @@
 [package]
 name = "teehistorian-py"
-version = "2025.2.1"
+version = "2025.2.2"
 edition = "2024"
 authors = ["Avolicious <avolicious@kog.tw>"]
 description = "High-performance Python bindings for teehistorian parsing"
