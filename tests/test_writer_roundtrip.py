@@ -7,6 +7,7 @@ that written files can be parsed back correctly.
 """
 
 import json
+import os
 import tempfile
 from pathlib import Path
 
@@ -421,6 +422,120 @@ class TestWriterRoundtrip:
             assert chunk_count > 0
         finally:
             temp_path.unlink(missing_ok=True)
+
+
+class TestWriterSizeConsistency:
+    """Test that file sizes are consistent in roundtrip."""
+
+    def test_roundtrip_file_size_consistency(self):
+        """Test that parsing and re-writing doesn't increase file size."""
+        with tempfile.NamedTemporaryFile(suffix=".teehistorian", delete=False) as f:
+            input_path = Path(f.name)
+        with tempfile.NamedTemporaryFile(suffix=".teehistorian", delete=False) as f:
+            output_path = Path(f.name)
+
+        try:
+            # Create input file with realistic data
+            writer1 = th.TeehistorianWriter()
+            writer1.set_header("comment", "Test replay")
+
+            for i in range(100):
+                writer1.write(th.Join(i % 10))
+                writer1.write(th.PlayerName(i % 10, f"Player{i}"))
+                writer1.write(th.PlayerNew(i % 10, 512 + i, 512 + i))
+
+            writer1.write(th.Eos())
+            writer1.save(str(input_path))
+
+            input_size = os.path.getsize(input_path)
+
+            # Parse and re-write
+            with open(input_path, "rb") as f:
+                data = f.read()
+            parser = th.TeehistorianParser(data)
+            writer2 = th.TeehistorianWriter()
+
+            for chunk in parser:
+                writer2.write(chunk)
+
+            writer2.save(str(output_path))
+            output_size = os.path.getsize(output_path)
+
+            # Sizes should be identical or very close (allowing for header differences)
+            size_diff = abs(output_size - input_size)
+            size_diff_percent = (size_diff / input_size) * 100 if input_size > 0 else 0
+
+            # Allow only 1% difference max (not 0.5% = 56KB difference)
+            assert size_diff_percent < 1.0, (
+                f"File size increased too much: "
+                f"input={input_size}, output={output_size}, "
+                f"diff={size_diff} bytes ({size_diff_percent:.2f}%)"
+            )
+
+        finally:
+            input_path.unlink(missing_ok=True)
+            output_path.unlink(missing_ok=True)
+
+    def test_roundtrip_with_diff_chunks(self):
+        """Test file size with PlayerDiff and InputDiff chunks (varint-heavy)."""
+        with tempfile.NamedTemporaryFile(suffix=".teehistorian", delete=False) as f:
+            input_path = Path(f.name)
+        with tempfile.NamedTemporaryFile(suffix=".teehistorian", delete=False) as f:
+            output_path = Path(f.name)
+
+        try:
+            # Create input file with many diff chunks (prone to varint issues)
+            writer1 = th.TeehistorianWriter()
+
+            for i in range(10):
+                writer1.write(th.Join(i))
+                writer1.write(th.PlayerName(i, f"Player{i}"))
+                writer1.write(th.PlayerNew(i, 512, 512))
+
+            # Write many PlayerDiff chunks (these use varint encoding extensively)
+            for i in range(100):
+                writer1.write(th.PlayerDiff(0, 127, 127))  # Small diffs
+                writer1.write(
+                    th.PlayerDiff(1, 128, 128)
+                )  # Larger diffs (different varint encoding)
+                writer1.write(th.InputDiff(0, [1, 2, 3, 4, 5, -1, -2, -3, -4, -5]))
+                writer1.write(
+                    th.InputDiff(
+                        1, [127, 127, 127, 127, 127, -127, -127, -127, -127, -127]
+                    )
+                )
+
+            writer1.write(th.Eos())
+            writer1.save(str(input_path))
+
+            input_size = os.path.getsize(input_path)
+
+            # Parse and re-write
+            with open(input_path, "rb") as f:
+                data = f.read()
+            parser = th.TeehistorianParser(data)
+            writer2 = th.TeehistorianWriter()
+
+            for chunk in parser:
+                writer2.write(chunk)
+
+            writer2.save(str(output_path))
+            output_size = os.path.getsize(output_path)
+
+            # Sizes should be identical
+            size_diff = abs(output_size - input_size)
+            size_diff_percent = (size_diff / input_size) * 100 if input_size > 0 else 0
+
+            # Allow only 1% difference max
+            assert size_diff_percent < 1.0, (
+                f"File size increased with diff chunks: "
+                f"input={input_size}, output={output_size}, "
+                f"diff={size_diff} bytes ({size_diff_percent:.2f}%)"
+            )
+
+        finally:
+            input_path.unlink(missing_ok=True)
+            output_path.unlink(missing_ok=True)
 
 
 class TestWriterEdgeCases:

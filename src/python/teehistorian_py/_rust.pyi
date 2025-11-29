@@ -301,6 +301,19 @@ class Generic(Chunk):
     def __str__(self) -> str: ...
     def to_dict(self) -> Dict[str, Any]: ...
 
+class RawChunk(Chunk):
+    """Raw chunk wrapper that stores unsupported chunk types with their original serialized bytes
+This allows us to perfectly reconstruct chunks that don't have Chunk enum variants
+for serialization (e.g., PlayerReady, PlayerTeam from some teehistorian versions)"""
+
+    data: bytes
+
+    def __init__(self, data: bytes) -> None: ...
+
+    def __repr__(self) -> str: ...
+    def __str__(self) -> str: ...
+    def to_dict(self) -> Dict[str, Any]: ...
+
 class Unknown(Chunk):
     """Unknown chunk with UUID (not registered)"""
 
@@ -352,6 +365,7 @@ InputChunk = Union[
 OtherChunk = Union[
     CustomChunk,
     Generic,
+    RawChunk,
     Unknown
 ]
 
@@ -371,6 +385,7 @@ AllChunks = Union[
     InputNew,
     PlayerReady,
     PlayerTeam,
+    RawChunk,
     Unknown
 ]
 

@@ -170,6 +170,26 @@ impl PyTeehistorian {
         Ok(PyBytes::new(py, &header_bytes).into())
     }
 
+    /// Get the header data as a JSON string
+    ///
+    /// # Returns
+    /// Header as JSON string or error
+    fn get_header_str(&mut self) -> PyResult<String> {
+        let header_bytes = self
+            .inner
+            .get_header()
+            .map_err(|e| TeehistorianParseError::Header(e.to_string()))?;
+
+        // Parse the header to extract the JSON string
+        // The teehistorian header format is: [compressed header][null terminator][chunks...]
+        // We need to decompress and parse it
+        let header_str = String::from_utf8(header_bytes).map_err(|e| {
+            TeehistorianParseError::Header(format!("Invalid UTF-8 in header: {}", e))
+        })?;
+
+        Ok(header_str)
+    }
+
     /// Python iterator protocol support
     fn __iter__(slf: Py<Self>) -> Py<Self> {
         slf
@@ -306,6 +326,7 @@ fn _rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyAntiBot>()?;
 
     // Add special chunks
+    m.add_class::<PyRawChunk>()?;
     m.add_class::<PyEos>()?;
     m.add_class::<PyUnknown>()?;
     m.add_class::<PyCustomChunk>()?;

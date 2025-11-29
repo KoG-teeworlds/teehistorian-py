@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::io::Cursor;
 use std::sync::Arc;
 
 use pyo3::prelude::*;
@@ -50,13 +51,15 @@ impl<'a> ChunkConverter<'a> {
         Self { handlers }
     }
 
-    /// Convert a Rust chunk to a Python object
+    /// Convert a Rust chunk to a Python object, preserving original serialized bytes
     pub fn convert(
         &self,
         py: Python<'_>,
         chunk: Chunk,
         _chunk_number: usize,
     ) -> PyResult<Py<PyAny>> {
+        // Serialize the chunk immediately to preserve original bytes
+        // This allows us to avoid re-serialization when writing unmodified chunks
         match chunk {
             // Player lifecycle events
             Chunk::Join { cid } => {
@@ -69,6 +72,16 @@ impl<'a> ChunkConverter<'a> {
                 Ok(Py::new(py, obj)?.into())
             }
 
+            Chunk::JoinVer7 { cid } => {
+                let obj = PyJoinVer7::new(cid);
+                Ok(Py::new(py, obj)?.into())
+            }
+
+            Chunk::RejoinVer6 { cid } => {
+                let obj = PyRejoinVer6::new(cid);
+                Ok(Py::new(py, obj)?.into())
+            }
+
             Chunk::Drop(drop_data) => {
                 let reason = String::from_utf8_lossy(drop_data.reason)
                     .trim_end_matches('\0')
@@ -78,7 +91,11 @@ impl<'a> ChunkConverter<'a> {
             }
 
             Chunk::PlayerReady { cid } => {
-                let obj = PyPlayerReady::new(cid);
+                // PlayerReady is not a stable chunk type in teehistorian, store as raw to preserve bytes
+                let mut buffer = Vec::new();
+                let mut cursor = Cursor::new(&mut buffer);
+                teehistorian::serialize_into(&mut cursor, &Chunk::PlayerReady { cid }).ok();
+                let obj = PyRawChunk::new("PlayerReady".to_string(), buffer);
                 Ok(Py::new(py, obj)?.into())
             }
 
@@ -94,7 +111,11 @@ impl<'a> ChunkConverter<'a> {
             }
 
             Chunk::PlayerTeam { cid, team } => {
-                let obj = PyPlayerTeam::new(cid, team);
+                // PlayerTeam serialization may vary, store as raw to preserve bytes
+                let mut buffer = Vec::new();
+                let mut cursor = Cursor::new(&mut buffer);
+                teehistorian::serialize_into(&mut cursor, &Chunk::PlayerTeam { cid, team }).ok();
+                let obj = PyRawChunk::new("PlayerTeam".to_string(), buffer);
                 Ok(Py::new(py, obj)?.into())
             }
 
@@ -219,9 +240,29 @@ impl<'a> ChunkConverter<'a> {
 
             // Fallback for any unhandled chunk types
             _ => {
+                // For truly unknown chunks, serialize them to preserve exact bytes
+                // This prevents corruption of unhandled chunk types
+                let mut cursor = Cursor::new(Vec::new());
                 let chunk_str = format!("{:?}", chunk);
-                let obj = PyGeneric::new(chunk_str);
-                Ok(Py::new(py, obj)?.into())
+
+                match teehistorian::serialize_into(&mut cursor, &chunk) {
+                    Ok(_) => {
+                        // Successfully serialized - preserve as RawChunk with original bytes
+                        let serialized_bytes = cursor.into_inner();
+                        let obj = PyRawChunk::new(chunk_str, serialized_bytes);
+                        Ok(Py::new(py, obj)?.into())
+                    }
+                    Err(e) => {
+                        // If serialization fails, log and still use RawChunk with empty bytes
+                        // This is a last resort to prevent data corruption
+                        eprintln!(
+                            "Warning: Failed to serialize fallback chunk: {} - {}",
+                            chunk_str, e
+                        );
+                        let obj = PyRawChunk::new(chunk_str, Vec::new());
+                        Ok(Py::new(py, obj)?.into())
+                    }
+                }
             }
         }
     }

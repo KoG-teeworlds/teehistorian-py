@@ -7,6 +7,68 @@ use teehistorian::Chunk;
 // Import macros from the macros module
 use crate::{define_chunk, define_chunk_custom, define_inline_chunk, define_zero_field_chunk};
 
+/// Raw chunk wrapper that stores unsupported chunk types with their original serialized bytes
+/// This allows us to perfectly reconstruct chunks that don't have Chunk enum variants
+/// for serialization (e.g., PlayerReady, PlayerTeam from some teehistorian versions)
+
+#[pyclass(module = "teehistorian_py", frozen)]
+#[derive(Debug, Clone)]
+pub struct PyRawChunk {
+    chunk_name: String,
+    #[pyo3(get)]
+    pub data: Vec<u8>,
+}
+
+impl PyRawChunk {
+    pub fn new(chunk_name: String, data: Vec<u8>) -> Self {
+        Self { chunk_name, data }
+    }
+}
+
+impl TeehistorianChunk for PyRawChunk {
+    fn to_teehistorian_chunk(&self) -> Chunk<'_> {
+        // Raw chunks are already serialized, so this should never be called
+        // If it is, we panic because we can't deserialize and re-serialize
+        panic!("Cannot convert RawChunk back to Chunk enum - this chunk was stored as raw bytes")
+    }
+
+    fn write_to_buffer(&self) -> PyResult<Vec<u8>> {
+        // Return the original serialized bytes directly
+        Ok(self.data.clone())
+    }
+}
+
+#[pymethods]
+impl PyRawChunk {
+    #[new]
+    fn py_new(chunk_name: String, data: Vec<u8>) -> Self {
+        Self::new(chunk_name, data)
+    }
+
+    fn __repr__(&self) -> String {
+        format!("PyRawChunk({}, {} bytes)", self.chunk_name, self.data.len())
+    }
+
+    fn __str__(&self) -> String {
+        self.__repr__()
+    }
+
+    fn chunk_type(&self) -> String {
+        self.chunk_name.clone()
+    }
+
+    fn to_dict(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        let dict = pyo3::types::PyDict::new(py);
+        dict.set_item("type", self.chunk_name.clone())?;
+        dict.set_item("data", PyBytes::new(py, &self.data))?;
+        Ok(dict.into())
+    }
+
+    fn write_to_buffer(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        Ok(PyBytes::new(py, &self.data).into())
+    }
+}
+
 /// Base trait for all chunk types that can be written to teehistorian format
 pub trait TeehistorianChunk {
     /// Convert this chunk to the corresponding teehistorian::Chunk enum variant
@@ -74,6 +136,20 @@ define_inline_chunk! {
 define_inline_chunk! {
     /// Player joins with version 6 protocol
     JoinVer6 {
+        client_id: i32 => cid,
+    }
+}
+
+define_inline_chunk! {
+    /// Player joins with version 7 protocol
+    JoinVer7 {
+        client_id: i32 => cid,
+    }
+}
+
+define_inline_chunk! {
+    /// Player rejoins with version 6 protocol
+    RejoinVer6 {
         client_id: i32 => cid,
     }
 }
@@ -239,6 +315,14 @@ define_chunk! {
         client_id: i32 => cid,
         dx: i32 => dx,
         dy: i32 => dy,
+    }
+}
+
+define_inline_chunk! {
+    /// Player finished a race
+    PlayerFinish {
+        client_id: i32 => cid,
+        time: i32 => time,
     }
 }
 
@@ -411,6 +495,8 @@ define_chunk_custom! {
         version_str: Vec<u8> => version_str [as_slice],
     }
 }
+
+// DdnetVersionOld is a tuple variant in teehistorian crate, handled as raw chunk
 
 // Server Event Chunks
 // ----------------------------------------------------------------------------
