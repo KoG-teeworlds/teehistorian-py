@@ -401,7 +401,7 @@ class TestWriterChunks:
         """Test writing communication chunks."""
         writer = th.create()
         writer.write(th.NetMessage(0, "Hello World"))
-        writer.write(th.ConsoleCommand(0, 1, "say", "test message"))
+        writer.write(th.ConsoleCommand(0, 1, "say", ["test", "message"]))
         assert writer.size > 0
 
     def test_write_eos_chunk(self):

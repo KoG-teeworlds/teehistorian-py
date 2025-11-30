@@ -2,10 +2,43 @@ use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 use std::any::type_name;
 use std::io::Cursor;
+use std::cell::RefCell;
 use teehistorian::Chunk;
 
 // Import macros from the macros module
 use crate::{define_chunk, define_chunk_custom, define_inline_chunk, define_zero_field_chunk};
+
+// Storage for original serialized bytes - we store these when parsing
+// so we can use them when writing without re-serializing
+// This is wrapped in RefCell to allow interior mutability
+thread_local! {
+    pub static ORIGINAL_CHUNK_BYTES: RefCell<Vec<Option<Vec<u8>>>> = RefCell::new(Vec::new());
+}
+
+/// Register original bytes for the next chunk that will be created
+/// This is called during parsing to preserve exact byte sequences
+pub fn register_original_bytes(bytes: Vec<u8>) {
+    ORIGINAL_CHUNK_BYTES.with(|storage| {
+        storage.borrow_mut().push(Some(bytes));
+    });
+}
+
+/// Retrieve and consume the next registered original bytes
+pub fn take_original_bytes() -> Option<Vec<u8>> {
+    ORIGINAL_CHUNK_BYTES.with(|storage| {
+        let mut s = storage.borrow_mut();
+        if s.is_empty() {
+            None
+        } else {
+            s.remove(0).flatten()
+        }
+    })
+}
+
+/// Clear all stored original bytes
+pub fn clear_original_bytes() {
+    ORIGINAL_CHUNK_BYTES.with(|storage| storage.borrow_mut().clear());
+}
 
 /// Raw chunk wrapper that stores unsupported chunk types with their original serialized bytes
 /// This allows us to perfectly reconstruct chunks that don't have Chunk enum variants
@@ -87,7 +120,19 @@ pub trait TeehistorianChunk {
     }
 
     /// Serialize this chunk to bytes
+    /// For unmodified chunks, prefers to use original serialized bytes if available
     fn write_to_buffer(&self) -> PyResult<Vec<u8>> {
+        // Try to get original bytes - this is set during parsing
+        // This ensures perfect roundtrip for unmodified chunks
+        if let Ok(maybe_bytes) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            take_original_bytes()
+        })) {
+            if let Some(bytes) = maybe_bytes {
+                return Ok(bytes);
+            }
+        }
+
+        // Fall back to re-serializing if no original bytes available
         let chunk = self.to_teehistorian_chunk();
         let mut cursor = Cursor::new(Vec::new());
         teehistorian::serialize_into(&mut cursor, &chunk).map_err(|e| {

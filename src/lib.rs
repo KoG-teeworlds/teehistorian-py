@@ -7,14 +7,17 @@ use pyo3::types::PyBytes;
 use teehistorian::{Chunk, Th};
 
 mod chunks;
+mod encoding;
 mod errors;
 mod handlers;
 mod macros;
+mod registry;
 mod writer;
 
 use chunks::*;
 use errors::TeehistorianParseError;
 use handlers::*;
+use registry::{ChunkDef, FieldFormat, FieldSpec};
 use writer::*;
 
 /// Type alias for thread-safe handler storage
@@ -110,15 +113,20 @@ impl PyTeehistorian {
             .into());
         }
 
-        let parser = TeehistorianParserInner::from_data(data.to_vec()).map_err(|e| {
+        let mut parser = TeehistorianParserInner::from_data(data.to_vec()).map_err(|e| {
             TeehistorianParseError::Parse(format!("Failed to initialize parser: {}", e))
         })?;
 
-        Ok(PyTeehistorian {
+        let mut instance = PyTeehistorian {
             inner: parser,
             handlers: Arc::new(HashMap::new()),
             chunk_count: 0,
-        })
+        };
+
+        // Parse header metadata and auto-register custom chunks
+        instance.parse_and_register_metadata()?;
+
+        Ok(instance)
     }
 
     /// Register a custom UUID handler
@@ -255,6 +263,93 @@ impl PyTeehistorian {
     }
 }
 
+impl PyTeehistorian {
+    /// Parse header metadata and auto-register custom chunks
+    ///
+    /// This method looks for __teehistorian_py metadata in the file header
+    /// and automatically registers any custom chunk definitions found.
+    fn parse_and_register_metadata(&mut self) -> PyResult<()> {
+        // Get header as string
+        let header_bytes = self.inner.get_header().map_err(|e| {
+            TeehistorianParseError::Header(format!("Failed to read header: {}", e))
+        })?;
+
+        let header_str = String::from_utf8(header_bytes).map_err(|e| {
+            TeehistorianParseError::Header(format!("Invalid UTF-8 in header: {}", e))
+        })?;
+
+        // Parse as JSON
+        let header_json: serde_json::Value = serde_json::from_str(&header_str).map_err(|e| {
+            TeehistorianParseError::Header(format!("Failed to parse header JSON: {}", e))
+        })?;
+
+        // Check for __teehistorian_py metadata
+        if let Some(metadata) = header_json.get("__teehistorian_py") {
+            if let Some(chunks) = metadata.get("chunks") {
+                if let Some(chunks_obj) = chunks.as_object() {
+                    // Register each chunk found in metadata
+                    for (uuid, chunk_data) in chunks_obj {
+                        if let Some(chunk_obj) = chunk_data.as_object() {
+                            // Extract chunk name
+                            let chunk_name = chunk_obj
+                                .get("name")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("UnknownChunk")
+                                .to_string();
+
+                            // Extract fields
+                            let mut fields = Vec::new();
+                            if let Some(fields_obj) = chunk_obj.get("fields").and_then(|v| v.as_object()) {
+                                for (field_name, field_data) in fields_obj {
+                                    if let Some(field_obj) = field_data.as_object() {
+                                        // Parse format string back to enum
+                                        let format_str = field_obj
+                                            .get("format")
+                                            .and_then(|v| v.as_str())
+                                            .unwrap_or("Varint");
+
+                                        let field_format = match format_str {
+                                            "I8" => registry::FieldFormat::I8,
+                                            "I16" => registry::FieldFormat::I16,
+                                            "I32" => registry::FieldFormat::I32,
+                                            "I64" => registry::FieldFormat::I64,
+                                            "String" => registry::FieldFormat::String,
+                                            "Bytes" => registry::FieldFormat::Bytes,
+                                            "Uuid" => registry::FieldFormat::Uuid,
+                                            _ => registry::FieldFormat::Varint,
+                                        };
+
+                                        fields.push(registry::FieldSpec {
+                                            name: field_name.clone(),
+                                            format: field_format,
+                                            description: None,
+                                        });
+                                    }
+                                }
+                            }
+
+                            // Create chunk definition
+                            let chunk_def = registry::ChunkDef {
+                                uuid: uuid.clone(),
+                                name: chunk_name,
+                                fields,
+                            };
+
+                            // Register globally
+                            registry::register_global(chunk_def);
+
+                            // Also register UUID handler for parsing
+                            self.register_custom_uuid(uuid.clone())?;
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
 /// Validate UUID string format
 pub fn is_valid_uuid_format(uuid: &str) -> bool {
     let parts: Vec<&str> = uuid.split('-').collect();
@@ -318,6 +413,8 @@ fn _rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Add authentication and version chunks
     m.add_class::<PyAuthLogin>()?;
     m.add_class::<PyDdnetVersion>()?;
+    m.add_class::<PyDdnetVersionOld>()?;
+    m.add_class::<PyPlayerFinish>()?;
 
     // Add server event chunks
     m.add_class::<PyTickSkip>()?;
@@ -326,7 +423,6 @@ fn _rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyAntiBot>()?;
 
     // Add special chunks
-    m.add_class::<PyRawChunk>()?;
     m.add_class::<PyEos>()?;
     m.add_class::<PyUnknown>()?;
     m.add_class::<PyCustomChunk>()?;
@@ -334,6 +430,15 @@ fn _rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // Add writer class (at end to debug export issue)
     m.add_class::<PyTeehistorianWriter>()?;
+
+    // Add registry classes and functions
+    m.add_class::<FieldFormat>()?;
+    m.add_class::<FieldSpec>()?;
+    m.add_class::<ChunkDef>()?;
+    m.add_function(wrap_pyfunction!(registry::py_api::register_global_chunk, m)?)?;
+    m.add_function(wrap_pyfunction!(registry::py_api::unregister_global_chunk, m)?)?;
+    m.add_function(wrap_pyfunction!(registry::py_api::get_global_chunk, m)?)?;
+    m.add_function(wrap_pyfunction!(registry::py_api::list_global_chunks, m)?)?;
 
     Ok(())
 }

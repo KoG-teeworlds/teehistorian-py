@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::io::Cursor;
 use std::sync::Arc;
 
 use pyo3::prelude::*;
@@ -83,19 +82,13 @@ impl<'a> ChunkConverter<'a> {
             }
 
             Chunk::Drop(drop_data) => {
-                let reason = String::from_utf8_lossy(drop_data.reason)
-                    .trim_end_matches('\0')
-                    .to_string();
+                let reason = String::from_utf8_lossy(drop_data.reason).to_string();
                 let obj = PyDrop::new(drop_data.cid, reason);
                 Ok(Py::new(py, obj)?.into())
             }
 
             Chunk::PlayerReady { cid } => {
-                // PlayerReady is not a stable chunk type in teehistorian, store as raw to preserve bytes
-                let mut buffer = Vec::new();
-                let mut cursor = Cursor::new(&mut buffer);
-                teehistorian::serialize_into(&mut cursor, &Chunk::PlayerReady { cid }).ok();
-                let obj = PyRawChunk::new("PlayerReady".to_string(), buffer);
+                let obj = PyPlayerReady::new(cid);
                 Ok(Py::new(py, obj)?.into())
             }
 
@@ -111,11 +104,7 @@ impl<'a> ChunkConverter<'a> {
             }
 
             Chunk::PlayerTeam { cid, team } => {
-                // PlayerTeam serialization may vary, store as raw to preserve bytes
-                let mut buffer = Vec::new();
-                let mut cursor = Cursor::new(&mut buffer);
-                teehistorian::serialize_into(&mut cursor, &Chunk::PlayerTeam { cid, team }).ok();
-                let obj = PyRawChunk::new("PlayerTeam".to_string(), buffer);
+                let obj = PyPlayerTeam::new(cid, team);
                 Ok(Py::new(py, obj)?.into())
             }
 
@@ -147,27 +136,18 @@ impl<'a> ChunkConverter<'a> {
 
             // Communication events
             Chunk::NetMessage(msg) => {
-                let message = String::from_utf8_lossy(msg.msg)
-                    .trim_end_matches('\0')
-                    .to_string();
+                let message = String::from_utf8_lossy(msg.msg).to_string();
                 let obj = PyNetMessage::new(msg.cid, message);
                 Ok(Py::new(py, obj)?.into())
             }
 
             Chunk::ConsoleCommand(console_cmd) => {
-                let command = String::from_utf8_lossy(console_cmd.cmd)
-                    .trim_end_matches('\0')
-                    .to_string();
+                let command = String::from_utf8_lossy(console_cmd.cmd).to_string();
                 let args = console_cmd
                     .args
                     .iter()
-                    .map(|arg| {
-                        String::from_utf8_lossy(arg)
-                            .trim_end_matches('\0')
-                            .to_string()
-                    })
-                    .collect::<Vec<_>>()
-                    .join(" ");
+                    .map(|arg| String::from_utf8_lossy(arg).to_string())
+                    .collect::<Vec<_>>();
                 let obj = PyConsoleCommand::new(console_cmd.cid, console_cmd.flags, command, args);
                 Ok(Py::new(py, obj)?.into())
             }
@@ -185,6 +165,17 @@ impl<'a> ChunkConverter<'a> {
                 let connection_id = ver.connection_id.to_string();
                 let version_str = ver.version_str.to_vec();
                 let obj = PyDdnetVersion::new(ver.cid, connection_id, ver.version, version_str);
+                Ok(Py::new(py, obj)?.into())
+            }
+
+            Chunk::DdnetVersionOld(ver) => {
+                let obj = PyDdnetVersionOld::new(ver.cid, ver.version);
+                Ok(Py::new(py, obj)?.into())
+            }
+
+            // Player events
+            Chunk::PlayerFinish { cid, time } => {
+                let obj = PyPlayerFinish::new(cid, time);
                 Ok(Py::new(py, obj)?.into())
             }
 
@@ -209,7 +200,8 @@ impl<'a> ChunkConverter<'a> {
             }
 
             Chunk::Antibot(data) => {
-                let data_str = format!("{:?}", data);
+                // Convert bytes to String (lossy for non-UTF8)
+                let data_str = String::from_utf8_lossy(data.data).to_string();
                 let obj = PyAntiBot::new(data_str);
                 Ok(Py::new(py, obj)?.into())
             }
@@ -240,29 +232,16 @@ impl<'a> ChunkConverter<'a> {
 
             // Fallback for any unhandled chunk types
             _ => {
-                // For truly unknown chunks, serialize them to preserve exact bytes
-                // This prevents corruption of unhandled chunk types
-                let mut cursor = Cursor::new(Vec::new());
+                // For unhandled chunks, create a Generic chunk with debug representation
+                // This is a temporary fallback - ideally all chunks should have explicit handlers
                 let chunk_str = format!("{:?}", chunk);
-
-                match teehistorian::serialize_into(&mut cursor, &chunk) {
-                    Ok(_) => {
-                        // Successfully serialized - preserve as RawChunk with original bytes
-                        let serialized_bytes = cursor.into_inner();
-                        let obj = PyRawChunk::new(chunk_str, serialized_bytes);
-                        Ok(Py::new(py, obj)?.into())
-                    }
-                    Err(e) => {
-                        // If serialization fails, log and still use RawChunk with empty bytes
-                        // This is a last resort to prevent data corruption
-                        eprintln!(
-                            "Warning: Failed to serialize fallback chunk: {} - {}",
-                            chunk_str, e
-                        );
-                        let obj = PyRawChunk::new(chunk_str, Vec::new());
-                        Ok(Py::new(py, obj)?.into())
-                    }
-                }
+                eprintln!(
+                    "Warning: Unhandled chunk type encountered: {}. Using Generic fallback. \
+                     This chunk may not roundtrip correctly.",
+                    chunk_str
+                );
+                let obj = PyGeneric::new(chunk_str);
+                Ok(Py::new(py, obj)?.into())
             }
         }
     }

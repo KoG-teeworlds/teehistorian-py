@@ -332,10 +332,12 @@ macro_rules! define_chunk_custom {
         uuid::Uuid::parse_str(&$value).unwrap_or_default()
     };
     (@apply_conversion $value:expr, as_args_vec) => {{
-        // Convert string to Vec<&[u8]> for console command args
-        // Split by null bytes and collect
-        let bytes = $value.as_bytes();
-        vec![bytes]
+        // Convert Vec<Vec<u8>> to Vec<&[u8]> for console command args
+        $value.iter().map(|v| v.as_slice()).collect::<Vec<&[u8]>>()
+    }};
+    (@apply_conversion $value:expr, as_string_args_vec) => {{
+        // Convert Vec<String> to Vec<&[u8]> for console command args
+        $value.iter().map(|s| s.as_bytes()).collect::<Vec<&[u8]>>()
     }};
     (@apply_conversion $value:expr, ) => {
         $value

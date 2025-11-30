@@ -6,6 +6,7 @@ use teehistorian::ThWriter;
 use uuid::Uuid;
 
 use crate::errors::TeehistorianParseError;
+use crate::registry;
 
 /// Teehistorian file writer
 ///
@@ -70,6 +71,7 @@ pub struct PyTeehistorianWriter {
     buffer: Vec<u8>,
     header_written: bool,
     header_data: Value,
+    include_custom_chunk_metadata: bool,
 }
 
 #[pymethods]
@@ -105,6 +107,7 @@ impl PyTeehistorianWriter {
             buffer: Vec::new(),
             header_written: false,
             header_data: default_header,
+            include_custom_chunk_metadata: false,  // Default: off for backwards compatibility
         }
     }
 
@@ -401,6 +404,30 @@ impl PyTeehistorianWriter {
             status
         )
     }
+
+    /// Enable or disable custom chunk metadata in header
+    ///
+    /// When enabled, the writer will include __teehistorian_py metadata in the header
+    /// with information about registered custom chunks.
+    ///
+    /// # Arguments
+    /// * `enabled` - Whether to include metadata (default: false)
+    ///
+    /// # Example
+    /// ```python
+    /// writer = th.TeehistorianWriter()
+    /// writer.set_include_custom_chunk_metadata(True)
+    /// ```
+    fn set_include_custom_chunk_metadata(&mut self, enabled: bool) -> PyResult<()> {
+        if self.header_written {
+            return Err(TeehistorianParseError::Validation(
+                "Cannot modify metadata setting after writing has started".to_string(),
+            )
+            .into());
+        }
+        self.include_custom_chunk_metadata = enabled;
+        Ok(())
+    }
 }
 
 impl PyTeehistorianWriter {
@@ -422,6 +449,9 @@ impl PyTeehistorianWriter {
         if self.header_written {
             return Ok(());
         }
+
+        // Add __teehistorian_py metadata with registered custom chunks
+        self.populate_custom_chunk_metadata();
 
         // The teehistorian UUID: 699db17b-8efb-34ff-b1d8-da6f60c15dd1
         // This is a version 3 UUID derived from the Teeworlds namespace
@@ -448,6 +478,68 @@ impl PyTeehistorianWriter {
         self.header_written = true;
 
         Ok(())
+    }
+
+    /// Populate __teehistorian_py metadata with registered custom chunks
+    fn populate_custom_chunk_metadata(&mut self) {
+        // Only include metadata if enabled
+        if !self.include_custom_chunk_metadata {
+            return;
+        }
+
+        // Get all globally registered chunks
+        let registered_uuids = registry::list_global();
+
+        if registered_uuids.is_empty() {
+            // No custom chunks, don't add metadata
+            return;
+        }
+
+        let mut chunks_meta = serde_json::Map::new();
+
+        for uuid in registered_uuids {
+            if let Some(chunk_def) = registry::get_global(&uuid) {
+                let mut chunk_obj = serde_json::Map::new();
+                chunk_obj.insert("name".to_string(), json!(chunk_def.name));
+
+                // Add field specifications
+                let mut fields_obj = serde_json::Map::new();
+                for field in chunk_def.fields {
+                    let mut field_obj = serde_json::Map::new();
+
+                    // Determine type from format
+                    let type_str = match field.format {
+                        registry::FieldFormat::Varint |
+                        registry::FieldFormat::I8 |
+                        registry::FieldFormat::I16 |
+                        registry::FieldFormat::I32 |
+                        registry::FieldFormat::I64 => "i32",
+                        registry::FieldFormat::String => "str",
+                        registry::FieldFormat::Bytes => "bytes",
+                        registry::FieldFormat::Uuid => "uuid",
+                    };
+
+                    let format_str = format!("{:?}", field.format);
+
+                    field_obj.insert("type".to_string(), json!(type_str));
+                    field_obj.insert("format".to_string(), json!(format_str));
+
+                    fields_obj.insert(field.name, Value::Object(field_obj));
+                }
+
+                chunk_obj.insert("fields".to_string(), Value::Object(fields_obj));
+                chunks_meta.insert(uuid, Value::Object(chunk_obj));
+            }
+        }
+
+        // Only add __teehistorian_py if there are custom chunks
+        if !chunks_meta.is_empty() {
+            let mut teehistorian_py_meta = serde_json::Map::new();
+            teehistorian_py_meta.insert("version".to_string(), json!("0.1.0"));
+            teehistorian_py_meta.insert("chunks".to_string(), Value::Object(chunks_meta));
+
+            self.header_data["__teehistorian_py"] = Value::Object(teehistorian_py_meta);
+        }
     }
 }
 

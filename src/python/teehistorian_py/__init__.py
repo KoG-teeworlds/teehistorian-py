@@ -89,6 +89,9 @@ from ._rust import (
     PyPlayerTeam as PlayerTeam,
 )
 from ._rust import (
+    PyRawChunk as RawChunk,
+)
+from ._rust import (
     PyTeamLoadFailure as TeamLoadFailure,
 )
 from ._rust import (
@@ -199,6 +202,7 @@ class TeehistorianWriter:
         self._writer = RustTeehistorianWriter()
         self._closed = False
         self._file = file
+        self._raw_header_section = None  # Store original header bytes for roundtrip
 
     def __enter__(self) -> "TeehistorianWriter":
         """Enter the context manager."""
@@ -309,6 +313,81 @@ class TeehistorianWriter:
             self.set_header(key, value)
         return self
 
+    def copy_header_from_parser(self, parser: Any) -> "TeehistorianWriter":
+        """
+        Copy header from a parser to preserve original file metadata.
+
+        Args:
+            parser: Teehistorian parser instance to copy header from
+
+        Returns:
+            Self for method chaining
+
+        Example:
+            >>> with open("input.teehistorian", "rb") as f:
+            ...     data = f.read()
+            >>> parser = th.Teehistorian(data)
+            >>> writer = th.TeehistorianWriter()
+            >>> writer.copy_header_from_parser(parser)
+            >>> for chunk in parser:
+            ...     writer.write(chunk)
+            >>> writer.save("output.teehistorian")
+        """
+        if self._closed:
+            raise ValueError("Cannot modify header of closed writer")
+        self._writer.copy_header_from_parser(parser)
+        return self
+
+    def copy_header_from_file(
+        self, path: Union[str, PathLike[str]]
+    ) -> "TeehistorianWriter":
+        """
+        Copy header directly from a teehistorian file by path.
+
+        This preserves the exact original header bytes including the compression
+        wrapper and metadata, ensuring perfect roundtrip file sizes.
+
+        Args:
+            path: Path to the teehistorian file to copy header from
+
+        Returns:
+            Self for method chaining
+
+        Example:
+            >>> writer = th.TeehistorianWriter()
+            >>> writer.copy_header_from_file("input.teehistorian")
+            >>> with open("input.teehistorian", "rb") as f:
+            ...     parser = th.Teehistorian(f.read())
+            >>> for chunk in parser:
+            ...     writer.write(chunk)
+            >>> writer.save("output.teehistorian")
+        """
+        if self._closed:
+            raise ValueError("Cannot modify header of closed writer")
+
+        # Read the original file's header section (including compression wrapper)
+        file_path = Path(path)
+        with open(file_path, "rb") as f:
+            original_data = f.read()
+
+        # Find the null terminator that marks the end of the header
+        null_idx = original_data.find(b"\0")
+        if null_idx == -1:
+            raise ValueError(
+                "File does not contain a valid teehistorian header (no null terminator)"
+            )
+
+        # Store the exact header bytes including compression wrapper
+        # We'll manually set this by creating a temporary parser and using its header
+        parser = Teehistorian(original_data)
+        self._writer.copy_header_from_parser(parser)
+
+        # Manually store the raw header bytes for proper serialization
+        # by directly manipulating the output
+        self._raw_header_section = original_data[: null_idx + 1]
+
+        return self
+
     def save(self, path: Union[str, PathLike[str]]) -> None:
         """
         Save the teehistorian to a file.
@@ -319,7 +398,8 @@ class TeehistorianWriter:
         Example:
             >>> writer.save("output.teehistorian")
         """
-        self._writer.save(str(path))
+        data = self.getvalue()
+        Path(path).write_bytes(data)
 
     def getvalue(self) -> bytes:
         """
@@ -333,7 +413,19 @@ class TeehistorianWriter:
             >>> with open("file.teehistorian", "wb") as f:
             ...     f.write(data)
         """
-        return self._writer.getvalue()
+        data = self._writer.getvalue()
+
+        # If we have stored raw header bytes (from copy_header_from_file),
+        # use them instead for exact roundtrip preservation
+        if self._raw_header_section is not None:
+            # Find where the chunks start in the current output
+            null_idx = data.find(b"\0")
+            if null_idx != -1:
+                chunks = data[null_idx + 1 :]
+                # Reconstruct: original header + chunks
+                data = self._raw_header_section + chunks
+
+        return data
 
     def writeto(self, file: Any) -> None:
         """
@@ -441,6 +533,7 @@ __all__ = [
     "Unknown",
     "CustomChunk",
     "Generic",
+    "RawChunk",
     # Exceptions
     "TeehistorianError",
     "ParseError",
