@@ -1,6 +1,7 @@
 /target
 .teehistorian
 *.teehistorian
+*.demo
 !tests/**/*.teehistorian
 **/*.rs.bk
 .DS_Store

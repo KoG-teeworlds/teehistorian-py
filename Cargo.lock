@@ -19,6 +19,12 @@ dependencies = [
 
 [[package]]
 name = "arrayvec"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "23b62fc65de8e4e7f52534fb52b0f3ed04746ae267519eef2a83941e8085068b"
+
+[[package]]
+name = "arrayvec"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c02d123df017efcdfbd739ef81735b36c5ba83ec3c59c80a9d7ecc718f92e50"
@@ -36,10 +42,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "812e12b5285cc515a9c72a5c1d3b6d46a19dac5acfef5265968c166106e31dd3"
 
 [[package]]
+name = "buffer"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aab7228d32b5d95be40adeba1d9461c8547b5dadf5f9cbfba09b6d578991df28"
+dependencies = [
+ "arrayvec 0.5.2",
+ "mac",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "46c5e41b57b8bba42a04676d81cb89e9ee8e859a1a66f80a5a72e1cb76b34d43"
+
+[[package]]
+name = "byteorder"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
 
 [[package]]
 name = "cc"
@@ -117,7 +139,7 @@ dependencies = [
  "core-foundation-sys",
  "iana-time-zone-haiku",
  "js-sys",
- "log",
+ "log 0.4.28",
  "wasm-bindgen",
  "windows-core",
 ]
@@ -183,9 +205,24 @@ dependencies = [
 
 [[package]]
 name = "log"
+version = "0.3.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e19e8d5c34a3e0e2223db8e060f9e8264aeeb5c5fc64a4ee9965c062211c024b"
+dependencies = [
+ "log 0.4.28",
+]
+
+[[package]]
+name = "log"
 version = "0.4.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "34080505efa8e45a4b816c349525ebe327ceaa8559756f0356cba97ef3bf7432"
+
+[[package]]
+name = "mac"
+version = "0.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1b1db08c0d0ddbb591e65f1da58d1cefccc94a2faa0c55bf979ce215a3e04d5e"
 
 [[package]]
 name = "memchr"
@@ -291,6 +328,91 @@ name = "portable-atomic"
 version = "1.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f84267b20a16ea918e43c6a88433c2d54fa145c92a811b5b047ccbe153674483"
+
+[[package]]
+name = "pre-rfc3243-libtw2-common"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6715127db3f516b89e46baa48bd571ded37e0bb5d912fc5924032d17ee7b372a"
+dependencies = [
+ "arrayvec 0.5.2",
+ "zerocopy",
+]
+
+[[package]]
+name = "pre-rfc3243-libtw2-gamenet-common"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "465e220f11170e7ee0dfe2c874d2731266cb486c661718620a786f242c02ad61"
+dependencies = [
+ "arrayvec 0.5.2",
+ "buffer",
+ "pre-rfc3243-libtw2-common",
+ "pre-rfc3243-libtw2-packer",
+ "serde",
+ "serde_derive",
+ "uuid 0.8.2",
+ "warn",
+ "zerocopy",
+]
+
+[[package]]
+name = "pre-rfc3243-libtw2-gamenet-ddnet"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "857fb1fb6c271d1cfa395ea7b646aa0c29990c1581320da2362a521577830b77"
+dependencies = [
+ "arrayvec 0.5.2",
+ "buffer",
+ "pre-rfc3243-libtw2-common",
+ "pre-rfc3243-libtw2-gamenet-common",
+ "pre-rfc3243-libtw2-gamenet-snap",
+ "pre-rfc3243-libtw2-packer",
+ "uuid 0.8.2",
+ "warn",
+]
+
+[[package]]
+name = "pre-rfc3243-libtw2-gamenet-snap"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3d2ed0cac03d396645a80ff78b8f8e6ccddfee7415ac10d8adf71cf0b6ddab75"
+dependencies = [
+ "buffer",
+ "pre-rfc3243-libtw2-common",
+ "pre-rfc3243-libtw2-gamenet-common",
+ "pre-rfc3243-libtw2-packer",
+ "warn",
+]
+
+[[package]]
+name = "pre-rfc3243-libtw2-gamenet-teeworlds-0-7"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4e457ad37caedbc3bb00b5e98084b04d191177e9e2ccef32abb23314ca1a944a"
+dependencies = [
+ "arrayvec 0.5.2",
+ "buffer",
+ "pre-rfc3243-libtw2-common",
+ "pre-rfc3243-libtw2-gamenet-common",
+ "pre-rfc3243-libtw2-gamenet-snap",
+ "pre-rfc3243-libtw2-packer",
+ "uuid 0.8.2",
+ "warn",
+]
+
+[[package]]
+name = "pre-rfc3243-libtw2-packer"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cf3e1a71fc1ddb7004182840ccefd6838e4ec3efde922a8da990587ad69def22"
+dependencies = [
+ "arrayvec 0.5.2",
+ "buffer",
+ "pre-rfc3243-libtw2-common",
+ "uuid 0.8.2",
+ "warn",
+]
 
 [[package]]
 name = "proc-macro2"
@@ -495,10 +617,10 @@ version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f1669d0b1ce36ec4918de04fc88a77137ad93ccd816d73f9ff82800e4f3c92e2"
 dependencies = [
- "arrayvec",
+ "arrayvec 0.7.6",
  "nom",
  "serde",
- "uuid",
+ "uuid 1.18.1",
 ]
 
 [[package]]
@@ -511,6 +633,9 @@ dependencies = [
  "ouroboros",
  "parking_lot",
  "paste",
+ "pre-rfc3243-libtw2-gamenet-ddnet",
+ "pre-rfc3243-libtw2-gamenet-teeworlds-0-7",
+ "pre-rfc3243-libtw2-packer",
  "proc-macro2",
  "pyo3",
  "quote",
@@ -520,7 +645,8 @@ dependencies = [
  "syn",
  "teehistorian",
  "thiserror",
- "uuid",
+ "uuid 1.18.1",
+ "warn",
 ]
 
 [[package]]
@@ -557,6 +683,15 @@ checksum = "7264e107f553ccae879d21fbea1d6724ac785e8c3bfc762137959b5802826ef3"
 
 [[package]]
 name = "uuid"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc5cf98d8186244414c848017f0e2676b3fcb46807f6668a97dfe67359a3c4b7"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "uuid"
 version = "1.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2f87b8aa10b915a06587d0dec516c282ff295b475d94abf425d62b57710070a2"
@@ -571,6 +706,15 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
+
+[[package]]
+name = "warn"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5f2638072850e7fde2e4e96d78204024000382e5666876bd8a3e7e9db6ed22cb"
+dependencies = [
+ "log 0.3.9",
+]
 
 [[package]]
 name = "wasm-bindgen"
@@ -681,3 +825,24 @@ name = "yansi"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cfe53a6657fd280eaa890a3bc59152892ffa3e30101319d168b781ed6529b049"
+
+[[package]]
+name = "zerocopy"
+version = "0.7.35"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1b9b4fd18abc82b8136838da5d50bae7bdea537c574d8dc1a34ed098d6c166f0"
+dependencies = [
+ "byteorder",
+ "zerocopy-derive",
+]
+
+[[package]]
+name = "zerocopy-derive"
+version = "0.7.35"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fa4f8080344d4671fb4e831a13ad1e68092748387dfc4f55e356242fae12ce3e"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]

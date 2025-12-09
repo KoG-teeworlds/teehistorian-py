@@ -2,105 +2,10 @@ use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 use std::any::type_name;
 use std::io::Cursor;
-use std::cell::RefCell;
 use teehistorian::Chunk;
 
 // Import macros from the macros module
 use crate::{define_chunk, define_chunk_custom, define_inline_chunk, define_zero_field_chunk};
-
-// Storage for original serialized bytes - we store these when parsing
-// so we can use them when writing without re-serializing
-// This is wrapped in RefCell to allow interior mutability
-thread_local! {
-    pub static ORIGINAL_CHUNK_BYTES: RefCell<Vec<Option<Vec<u8>>>> = RefCell::new(Vec::new());
-}
-
-/// Register original bytes for the next chunk that will be created
-/// This is called during parsing to preserve exact byte sequences
-pub fn register_original_bytes(bytes: Vec<u8>) {
-    ORIGINAL_CHUNK_BYTES.with(|storage| {
-        storage.borrow_mut().push(Some(bytes));
-    });
-}
-
-/// Retrieve and consume the next registered original bytes
-pub fn take_original_bytes() -> Option<Vec<u8>> {
-    ORIGINAL_CHUNK_BYTES.with(|storage| {
-        let mut s = storage.borrow_mut();
-        if s.is_empty() {
-            None
-        } else {
-            s.remove(0).flatten()
-        }
-    })
-}
-
-/// Clear all stored original bytes
-pub fn clear_original_bytes() {
-    ORIGINAL_CHUNK_BYTES.with(|storage| storage.borrow_mut().clear());
-}
-
-/// Raw chunk wrapper that stores unsupported chunk types with their original serialized bytes
-/// This allows us to perfectly reconstruct chunks that don't have Chunk enum variants
-/// for serialization (e.g., PlayerReady, PlayerTeam from some teehistorian versions)
-
-#[pyclass(module = "teehistorian_py", frozen)]
-#[derive(Debug, Clone)]
-pub struct PyRawChunk {
-    chunk_name: String,
-    #[pyo3(get)]
-    pub data: Vec<u8>,
-}
-
-impl PyRawChunk {
-    pub fn new(chunk_name: String, data: Vec<u8>) -> Self {
-        Self { chunk_name, data }
-    }
-}
-
-impl TeehistorianChunk for PyRawChunk {
-    fn to_teehistorian_chunk(&self) -> Chunk<'_> {
-        // Raw chunks are already serialized, so this should never be called
-        // If it is, we panic because we can't deserialize and re-serialize
-        panic!("Cannot convert RawChunk back to Chunk enum - this chunk was stored as raw bytes")
-    }
-
-    fn write_to_buffer(&self) -> PyResult<Vec<u8>> {
-        // Return the original serialized bytes directly
-        Ok(self.data.clone())
-    }
-}
-
-#[pymethods]
-impl PyRawChunk {
-    #[new]
-    fn py_new(chunk_name: String, data: Vec<u8>) -> Self {
-        Self::new(chunk_name, data)
-    }
-
-    fn __repr__(&self) -> String {
-        format!("PyRawChunk({}, {} bytes)", self.chunk_name, self.data.len())
-    }
-
-    fn __str__(&self) -> String {
-        self.__repr__()
-    }
-
-    fn chunk_type(&self) -> String {
-        self.chunk_name.clone()
-    }
-
-    fn to_dict(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        let dict = pyo3::types::PyDict::new(py);
-        dict.set_item("type", self.chunk_name.clone())?;
-        dict.set_item("data", PyBytes::new(py, &self.data))?;
-        Ok(dict.into())
-    }
-
-    fn write_to_buffer(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        Ok(PyBytes::new(py, &self.data).into())
-    }
-}
 
 /// Base trait for all chunk types that can be written to teehistorian format
 pub trait TeehistorianChunk {
@@ -120,19 +25,10 @@ pub trait TeehistorianChunk {
     }
 
     /// Serialize this chunk to bytes
-    /// For unmodified chunks, prefers to use original serialized bytes if available
+    /// Always re-serializes chunks to support modification
     fn write_to_buffer(&self) -> PyResult<Vec<u8>> {
-        // Try to get original bytes - this is set during parsing
-        // This ensures perfect roundtrip for unmodified chunks
-        if let Ok(maybe_bytes) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            take_original_bytes()
-        })) {
-            if let Some(bytes) = maybe_bytes {
-                return Ok(bytes);
-            }
-        }
-
-        // Fall back to re-serializing if no original bytes available
+        // Always re-serialize to support chunk modification
+        // This ensures that if a chunk was modified in Python, it gets properly re-encoded
         let chunk = self.to_teehistorian_chunk();
         let mut cursor = Cursor::new(Vec::new());
         teehistorian::serialize_into(&mut cursor, &chunk).map_err(|e| {
@@ -227,11 +123,10 @@ impl PyPlayerReady {
 
 impl TeehistorianChunk for PyPlayerReady {
     fn to_teehistorian_chunk(&self) -> Chunk<'_> {
-        // PlayerReady is represented as PlayerName with empty name in teehistorian 0.12
-        Chunk::PlayerName(teehistorian::chunks::PlayerName {
+        // PlayerReady is an inline variant in the Chunk enum
+        Chunk::PlayerReady {
             cid: self.client_id,
-            name: b"",
-        })
+        }
     }
 }
 
@@ -305,12 +200,11 @@ impl PyPlayerTeam {
 
 impl TeehistorianChunk for PyPlayerTeam {
     fn to_teehistorian_chunk(&self) -> Chunk<'static> {
-        // PlayerTeam doesn't have a direct teehistorian representation
-        // Use PlayerName with empty name as fallback
-        Chunk::PlayerName(teehistorian::chunks::PlayerName {
+        // PlayerTeam is an inline variant in teehistorian 0.12
+        Chunk::PlayerTeam {
             cid: self.client_id,
-            name: b"",
-        })
+            team: self.team,
+        }
     }
 }
 
@@ -505,7 +399,179 @@ define_chunk_custom! {
     /// Network message from/to player
     NetMessage(NetMessage) {
         client_id: i32 => cid,
-        msg: String => msg [as_bytes],
+        msg: Vec<u8> => msg [as_slice],
+    }
+}
+
+/// Parsed network message containing player information
+/// This is used when a NetMessage contains ClStartInfo or ClChangeInfo
+#[pyclass(module = "teehistorian_py", frozen)]
+#[derive(Debug, Clone)]
+pub struct PyNetMessagePlayerInfo {
+    #[pyo3(get)]
+    pub client_id: i32,
+    #[pyo3(get)]
+    pub message_type: String,
+    #[pyo3(get)]
+    pub name: String,
+    #[pyo3(get)]
+    pub clan: String,
+    #[pyo3(get)]
+    pub country: i32,
+    #[pyo3(get)]
+    pub skin: String,
+    #[pyo3(get)]
+    pub use_custom_color: bool,
+    #[pyo3(get)]
+    pub color_body: i32,
+    #[pyo3(get)]
+    pub color_feet: i32,
+    // Raw message bytes from original file (if read from file)
+    // If present, use these instead of re-encoding to preserve message type
+    raw_bytes: Option<Vec<u8>>,
+    // Cached encoded bytes (computed lazily, only used if raw_bytes is None)
+    encoded_cache: std::sync::OnceLock<Vec<u8>>,
+}
+
+impl PyNetMessagePlayerInfo {
+    pub fn new(
+        client_id: i32,
+        message_type: String,
+        name: String,
+        clan: String,
+        country: i32,
+        skin: String,
+        use_custom_color: bool,
+        color_body: i32,
+        color_feet: i32,
+    ) -> Self {
+        Self {
+            client_id,
+            message_type,
+            name,
+            clan,
+            country,
+            skin,
+            use_custom_color,
+            color_body,
+            color_feet,
+            raw_bytes: None,
+            encoded_cache: std::sync::OnceLock::new(),
+        }
+    }
+
+    pub fn with_raw_bytes(
+        client_id: i32,
+        message_type: String,
+        name: String,
+        clan: String,
+        country: i32,
+        skin: String,
+        use_custom_color: bool,
+        color_body: i32,
+        color_feet: i32,
+        raw_bytes: Vec<u8>,
+    ) -> Self {
+        Self {
+            client_id,
+            message_type,
+            name,
+            clan,
+            country,
+            skin,
+            use_custom_color,
+            color_body,
+            color_feet,
+            raw_bytes: Some(raw_bytes),
+            encoded_cache: std::sync::OnceLock::new(),
+        }
+    }
+
+    fn get_encoded_bytes(&self) -> &[u8] {
+        // If we have raw bytes from the original file, use those to preserve message type
+        if let Some(raw_bytes) = &self.raw_bytes {
+            return raw_bytes;
+        }
+
+        // Otherwise, encode from the fields (this may lose message type information)
+        self.encoded_cache.get_or_init(|| {
+            crate::net_msg::encode_player_info_message(
+                &self.message_type,
+                &self.name,
+                &self.clan,
+                self.country,
+                &self.skin,
+                self.use_custom_color,
+                self.color_body,
+                self.color_feet,
+            )
+        })
+    }
+}
+
+impl TeehistorianChunk for PyNetMessagePlayerInfo {
+    fn to_teehistorian_chunk(&self) -> Chunk<'_> {
+        Chunk::NetMessage(teehistorian::chunks::NetMessage {
+            cid: self.client_id,
+            msg: self.get_encoded_bytes(),
+        })
+    }
+}
+
+#[pymethods]
+impl PyNetMessagePlayerInfo {
+    #[new]
+    #[pyo3(signature = (client_id, message_type, name, clan, country, skin, use_custom_color=false, color_body=0, color_feet=0))]
+    fn py_new(
+        client_id: i32,
+        message_type: String,
+        name: String,
+        clan: String,
+        country: i32,
+        skin: String,
+        use_custom_color: bool,
+        color_body: i32,
+        color_feet: i32,
+    ) -> Self {
+        Self::new(
+            client_id,
+            message_type,
+            name,
+            clan,
+            country,
+            skin,
+            use_custom_color,
+            color_body,
+            color_feet,
+        )
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+
+    fn __str__(&self) -> String {
+        self.__repr__()
+    }
+
+    fn chunk_type(&self) -> &'static str {
+        "NetMessagePlayerInfo"
+    }
+
+    fn to_dict(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        let dict = pyo3::types::PyDict::new(py);
+        dict.set_item("type", self.chunk_type())?;
+        dict.set_item("client_id", self.client_id)?;
+        dict.set_item("message_type", &self.message_type)?;
+        dict.set_item("name", &self.name)?;
+        dict.set_item("clan", &self.clan)?;
+        dict.set_item("country", self.country)?;
+        dict.set_item("skin", &self.skin)?;
+        Ok(dict.into())
+    }
+
+    fn write_to_buffer(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        self.py_write_to_buffer(py)
     }
 }
 
@@ -515,7 +581,7 @@ define_chunk_custom! {
         client_id: i32 => cid,
         flags: i32 => flags,
         cmd: String => cmd [as_bytes],
-        args: String => args [as_args_vec],
+        args: Vec<String> => args [as_string_args_vec],
     }
 }
 
@@ -541,7 +607,62 @@ define_chunk_custom! {
     }
 }
 
-// DdnetVersionOld is a tuple variant in teehistorian crate, handled as raw chunk
+/// DDNet client version information (old format)
+#[pyclass(module = "teehistorian_py", frozen)]
+#[derive(Debug, Clone)]
+pub struct PyDdnetVersionOld {
+    #[pyo3(get)]
+    pub client_id: i32,
+    #[pyo3(get)]
+    pub version: i32,
+}
+
+impl PyDdnetVersionOld {
+    pub fn new(client_id: i32, version: i32) -> Self {
+        Self { client_id, version }
+    }
+}
+
+impl TeehistorianChunk for PyDdnetVersionOld {
+    fn to_teehistorian_chunk(&self) -> Chunk<'static> {
+        Chunk::DdnetVersionOld(teehistorian::chunks::DdnetVersionOld {
+            cid: self.client_id,
+            version: self.version,
+        })
+    }
+}
+
+#[pymethods]
+impl PyDdnetVersionOld {
+    #[new]
+    fn py_new(client_id: i32, version: i32) -> Self {
+        Self::new(client_id, version)
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+
+    fn __str__(&self) -> String {
+        self.__repr__()
+    }
+
+    fn chunk_type(&self) -> &'static str {
+        "DdnetVersionOld"
+    }
+
+    fn to_dict(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        let dict = pyo3::types::PyDict::new(py);
+        dict.set_item("type", self.chunk_type())?;
+        dict.set_item("client_id", self.client_id)?;
+        dict.set_item("version", self.version)?;
+        Ok(dict.into())
+    }
+
+    fn write_to_buffer(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        self.py_write_to_buffer(py)
+    }
+}
 
 // Server Event Chunks
 // ----------------------------------------------------------------------------

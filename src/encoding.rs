@@ -2,7 +2,6 @@
 ///!
 ///! This module provides utilities to encode and decode field values using
 ///! teehistorian-compatible formats (variable-width integers, length-prefixed strings, etc.)
-
 use std::io::{self, Write};
 
 /// Encode a variable-width integer (teehistorian format)
@@ -119,7 +118,9 @@ pub fn decode_i64(data: &[u8]) -> Result<(i64, usize), &'static str> {
     if data.len() < 8 {
         return Err("Insufficient data for i64");
     }
-    let bytes = [data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]];
+    let bytes = [
+        data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
+    ];
     Ok((i64::from_le_bytes(bytes), 8))
 }
 
@@ -235,12 +236,7 @@ mod tests {
 
     #[test]
     fn test_bytes_roundtrip() {
-        let test_bytes = vec![
-            vec![],
-            vec![0],
-            vec![1, 2, 3, 4, 5],
-            vec![255; 100],
-        ];
+        let test_bytes = vec![vec![], vec![0], vec![1, 2, 3, 4, 5], vec![255; 100]];
 
         for bytes in test_bytes {
             let encoded = encode_bytes(&bytes);

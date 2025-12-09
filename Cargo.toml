@@ -21,6 +21,12 @@ crate-type = ["cdylib"]
 pyo3 = { version = "0.27", features = ["extension-module"] }
 teehistorian = "0.12"
 
+# Network message parsing
+pre-rfc3243-libtw2-gamenet-ddnet = "0.1"
+pre-rfc3243-libtw2-gamenet-teeworlds-0-7 = "0.1"
+pre-rfc3243-libtw2-packer = "0.1"
+warn = "0.2"
+
 # Error handling
 thiserror = "2.0"
 

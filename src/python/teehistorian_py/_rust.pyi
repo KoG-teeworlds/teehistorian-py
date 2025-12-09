@@ -290,6 +290,18 @@ class CustomChunk(Chunk):
     def __str__(self) -> str: ...
     def to_dict(self) -> Dict[str, Any]: ...
 
+class DdnetVersionOld(Chunk):
+    """DDNet client version information (old format)"""
+
+    client_id: int
+    version: int
+
+    def __init__(self, client_id: int, version: int) -> None: ...
+
+    def __repr__(self) -> str: ...
+    def __str__(self) -> str: ...
+    def to_dict(self) -> Dict[str, Any]: ...
+
 class Generic(Chunk):
     """Generic/fallback chunk type"""
 
@@ -301,14 +313,21 @@ class Generic(Chunk):
     def __str__(self) -> str: ...
     def to_dict(self) -> Dict[str, Any]: ...
 
-class RawChunk(Chunk):
-    """Raw chunk wrapper that stores unsupported chunk types with their original serialized bytes
-This allows us to perfectly reconstruct chunks that don't have Chunk enum variants
-for serialization (e.g., PlayerReady, PlayerTeam from some teehistorian versions)"""
+class NetMessagePlayerInfo(Chunk):
+    """Parsed network message containing player information
+This is used when a NetMessage contains ClStartInfo or ClChangeInfo"""
 
-    data: bytes
+    client_id: int
+    message_type: str
+    name: str
+    clan: str
+    country: int
+    skin: str
+    use_custom_color: bool
+    color_body: int
+    color_feet: int
 
-    def __init__(self, data: bytes) -> None: ...
+    def __init__(self, client_id: int, message_type: str, name: str, clan: str, country: int, skin: str, use_custom_color: bool, color_body: int, color_feet: int) -> None: ...
 
     def __repr__(self) -> str: ...
     def __str__(self) -> str: ...
@@ -364,8 +383,9 @@ InputChunk = Union[
 
 OtherChunk = Union[
     CustomChunk,
+    DdnetVersionOld,
     Generic,
-    RawChunk,
+    NetMessagePlayerInfo,
     Unknown
 ]
 
@@ -380,12 +400,13 @@ PlayerStateChunk = Union[
 # All chunk types
 AllChunks = Union[
     CustomChunk,
+    DdnetVersionOld,
     Generic,
     InputDiff,
     InputNew,
+    NetMessagePlayerInfo,
     PlayerReady,
     PlayerTeam,
-    RawChunk,
     Unknown
 ]
 

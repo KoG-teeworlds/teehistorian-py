@@ -1,8 +1,6 @@
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 use serde_json::{Value, json};
-use std::io::Cursor;
-use teehistorian::ThWriter;
 use uuid::Uuid;
 
 use crate::errors::TeehistorianParseError;
@@ -107,7 +105,7 @@ impl PyTeehistorianWriter {
             buffer: Vec::new(),
             header_written: false,
             header_data: default_header,
-            include_custom_chunk_metadata: false,  // Default: off for backwards compatibility
+            include_custom_chunk_metadata: false,
         }
     }
 
@@ -509,11 +507,11 @@ impl PyTeehistorianWriter {
 
                     // Determine type from format
                     let type_str = match field.format {
-                        registry::FieldFormat::Varint |
-                        registry::FieldFormat::I8 |
-                        registry::FieldFormat::I16 |
-                        registry::FieldFormat::I32 |
-                        registry::FieldFormat::I64 => "i32",
+                        registry::FieldFormat::Varint
+                        | registry::FieldFormat::I8
+                        | registry::FieldFormat::I16
+                        | registry::FieldFormat::I32
+                        | registry::FieldFormat::I64 => "i32",
                         registry::FieldFormat::String => "str",
                         registry::FieldFormat::Bytes => "bytes",
                         registry::FieldFormat::Uuid => "uuid",

@@ -11,6 +11,7 @@ mod encoding;
 mod errors;
 mod handlers;
 mod macros;
+mod net_msg;
 mod registry;
 mod writer;
 
@@ -113,7 +114,7 @@ impl PyTeehistorian {
             .into());
         }
 
-        let mut parser = TeehistorianParserInner::from_data(data.to_vec()).map_err(|e| {
+        let parser = TeehistorianParserInner::from_data(data.to_vec()).map_err(|e| {
             TeehistorianParseError::Parse(format!("Failed to initialize parser: {}", e))
         })?;
 
@@ -270,9 +271,10 @@ impl PyTeehistorian {
     /// and automatically registers any custom chunk definitions found.
     fn parse_and_register_metadata(&mut self) -> PyResult<()> {
         // Get header as string
-        let header_bytes = self.inner.get_header().map_err(|e| {
-            TeehistorianParseError::Header(format!("Failed to read header: {}", e))
-        })?;
+        let header_bytes = self
+            .inner
+            .get_header()
+            .map_err(|e| TeehistorianParseError::Header(format!("Failed to read header: {}", e)))?;
 
         let header_str = String::from_utf8(header_bytes).map_err(|e| {
             TeehistorianParseError::Header(format!("Invalid UTF-8 in header: {}", e))
@@ -299,7 +301,9 @@ impl PyTeehistorian {
 
                             // Extract fields
                             let mut fields = Vec::new();
-                            if let Some(fields_obj) = chunk_obj.get("fields").and_then(|v| v.as_object()) {
+                            if let Some(fields_obj) =
+                                chunk_obj.get("fields").and_then(|v| v.as_object())
+                            {
                                 for (field_name, field_data) in fields_obj {
                                     if let Some(field_obj) = field_data.as_object() {
                                         // Parse format string back to enum
@@ -408,6 +412,7 @@ fn _rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // Add communication chunks
     m.add_class::<PyNetMessage>()?;
+    m.add_class::<PyNetMessagePlayerInfo>()?;
     m.add_class::<PyConsoleCommand>()?;
 
     // Add authentication and version chunks
@@ -435,8 +440,14 @@ fn _rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<FieldFormat>()?;
     m.add_class::<FieldSpec>()?;
     m.add_class::<ChunkDef>()?;
-    m.add_function(wrap_pyfunction!(registry::py_api::register_global_chunk, m)?)?;
-    m.add_function(wrap_pyfunction!(registry::py_api::unregister_global_chunk, m)?)?;
+    m.add_function(wrap_pyfunction!(
+        registry::py_api::register_global_chunk,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        registry::py_api::unregister_global_chunk,
+        m
+    )?)?;
     m.add_function(wrap_pyfunction!(registry::py_api::get_global_chunk, m)?)?;
     m.add_function(wrap_pyfunction!(registry::py_api::list_global_chunks, m)?)?;
 

@@ -1,12 +1,11 @@
+use parking_lot::RwLock;
+use pyo3::prelude::*;
 ///! Chunk registration system for custom chunk types
 ///!
 ///! This module provides the infrastructure for registering and managing custom
 ///! chunk types that don't have direct teehistorian::Chunk enum variants.
-
 use std::collections::HashMap;
 use std::sync::Arc;
-use parking_lot::RwLock;
-use pyo3::prelude::*;
 
 /// Field format types for custom chunks
 #[pyclass(module = "teehistorian_py")]
@@ -56,7 +55,11 @@ pub struct FieldSpec {
 impl FieldSpec {
     #[new]
     fn new(name: String, format: FieldFormat, description: Option<String>) -> Self {
-        Self { name, format, description }
+        Self {
+            name,
+            format,
+            description,
+        }
     }
 
     fn __repr__(&self) -> String {
@@ -87,8 +90,12 @@ impl ChunkDef {
     }
 
     fn __repr__(&self) -> String {
-        format!("ChunkDef(uuid='{}', name='{}', {} fields)",
-                self.uuid, self.name, self.fields.len())
+        format!(
+            "ChunkDef(uuid='{}', name='{}', {} fields)",
+            self.uuid,
+            self.name,
+            self.fields.len()
+        )
     }
 }
 
