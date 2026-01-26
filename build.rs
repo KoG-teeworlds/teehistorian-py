@@ -263,6 +263,13 @@ fn generate_pyi(chunks: &[ChunkInfo]) -> String {
     pyi.push_str("        Returns:\n");
     pyi.push_str("            Header data as bytes (typically JSON)\n");
     pyi.push_str("        \"\"\"\n\n");
+    pyi.push_str("    def get_header_str(self) -> str:\n");
+    pyi.push_str("        \"\"\"Get the teehistorian header as a JSON string.\n\n");
+    pyi.push_str("        Returns:\n");
+    pyi.push_str(
+        "            Header data as JSON string (must be called before iterating chunks)\n",
+    );
+    pyi.push_str("        \"\"\"\n\n");
     pyi.push_str("    @property\n");
     pyi.push_str("    def chunk_count(self) -> int:\n");
     pyi.push_str("        \"\"\"Number of chunks processed so far.\"\"\"\n\n");
@@ -466,6 +473,19 @@ fn generate_pyi(chunks: &[ChunkInfo]) -> String {
         pyi.push('\n');
     }
     pyi.push_str("]\n\n");
+
+    // Add Py* aliases for pyright compatibility
+    pyi.push_str(
+        "# ============================================================================\n",
+    );
+    pyi.push_str("# Aliases for Rust class names (PyXxx -> Xxx)\n");
+    pyi.push_str(
+        "# ============================================================================\n\n",
+    );
+
+    for chunk in chunks {
+        pyi.push_str(&format!("Py{} = {}\n", chunk.name, chunk.name));
+    }
 
     pyi
 }

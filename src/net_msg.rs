@@ -1,7 +1,7 @@
 pub use libtw2_gamenet_ddnet::msg::game::Game as DdnetGameMsg;
 use libtw2_gamenet_teeworlds_0_7::msg::Game;
 pub use libtw2_gamenet_teeworlds_0_7::msg::game::Game as Tw07GameMsg;
-use libtw2_packer::{Packer, Unpacker};
+use libtw2_packer::Unpacker;
 use std::fmt;
 use warn::Warn;
 
@@ -387,10 +387,37 @@ pub struct ClCommand<'a> {
 }
 
 impl<'a> From<libtw2_gamenet_teeworlds_0_7::msg::game::ClCommand<'a>> for ClCommand<'a> {
-    fn from(cl_command: libtw2_gamenet_teeworlds_0_7::msg::game::ClCommand) -> ClCommand {
+    fn from(cl_command: libtw2_gamenet_teeworlds_0_7::msg::game::ClCommand<'a>) -> ClCommand<'a> {
         ClCommand {
             name: cl_command.name,
             arguments: cl_command.arguments,
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct ClReadyChange;
+
+impl From<libtw2_gamenet_teeworlds_0_7::msg::game::ClReadyChange> for ClReadyChange {
+    fn from(_: libtw2_gamenet_teeworlds_0_7::msg::game::ClReadyChange) -> ClReadyChange {
+        ClReadyChange
+    }
+}
+
+pub struct ClSkinChange<'a> {
+    pub skin_part_names: [&'a [u8]; 6],
+    pub use_custom_colors: [bool; 6],
+    pub skin_part_colors: [i32; 6],
+}
+
+impl<'a> From<libtw2_gamenet_teeworlds_0_7::msg::game::ClSkinChange<'a>> for ClSkinChange<'a> {
+    fn from(
+        cl_skin_change: libtw2_gamenet_teeworlds_0_7::msg::game::ClSkinChange<'a>,
+    ) -> ClSkinChange<'a> {
+        ClSkinChange {
+            skin_part_names: cl_skin_change.skin_part_names,
+            use_custom_colors: cl_skin_change.use_custom_colors,
+            skin_part_colors: cl_skin_change.skin_part_colors,
         }
     }
 }
@@ -410,6 +437,8 @@ pub enum ClNetMessage<'a> {
     ClShowOthers(i32),
     ClShowDistance(ClShowDistance),
     ClCommand(ClCommand<'a>),
+    ClReadyChange(ClReadyChange),
+    ClSkinChange(ClSkinChange<'a>),
 }
 
 // copied from https://github.com/heinrich5991/libtw2/blob/2872de4573e65d1690f1a5f344311df86d554eb4/tools/src/warn_stdout.rs
@@ -510,12 +539,12 @@ fn parse_teeworlds_07(buf: &[u8]) -> Result<ClNetMessage, Error> {
             Game::ClSetSpectatorMode(msg) => Ok(ClNetMessage::ClSetSpectatorMode(msg.into())),
             Game::ClStartInfo(msg) => Ok(ClNetMessage::ClStartInfo(msg.into())),
             Game::ClKill(_) => Ok(ClNetMessage::ClKill),
-            Game::ClReadyChange(_) => Err(Error::NonClientGameMsg07(msg)),
             Game::ClEmoticon(msg) => Ok(ClNetMessage::ClEmoticon(msg.emoticon.into())),
             Game::ClVote(msg) => Ok(ClNetMessage::ClVote(msg.vote)),
             Game::ClCallVote(msg) => Ok(ClNetMessage::ClCallVote(msg.into())),
-            Game::ClSkinChange(_) => Err(Error::NonClientGameMsg07(msg)),
+            Game::ClSkinChange(msg) => Ok(ClNetMessage::ClSkinChange(msg.into())),
             Game::ClCommand(msg) => Ok(ClNetMessage::ClCommand(msg.into())),
+            Game::ClReadyChange(msg) => Ok(ClNetMessage::ClReadyChange(msg.into())),
         },
         Err(err) => Err(Error::NetMsgParseError(err)),
     }
@@ -592,7 +621,7 @@ pub fn encode_player_info_message(
         use libtw2_packer::with_packer;
         with_packer(&mut buf, |p| {
             // Let the library handle the encoding with correct message IDs
-            game_msg.encode(p);
+            let _ = game_msg.encode(p);
         });
     }
 

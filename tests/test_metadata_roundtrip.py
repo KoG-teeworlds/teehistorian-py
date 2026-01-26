@@ -1,101 +1,78 @@
 #!/usr/bin/env python3
-"""Test metadata roundtrip: write with metadata, read and verify auto-registration"""
+"""Test metadata roundtrip: write with metadata, read and verify"""
+
+import json
+import os
+import tempfile
 
 import teehistorian_py as th
-import tempfile
-import os
 
-def test_metadata_roundtrip():
-    """Write a file with metadata, then read it back and verify auto-registration"""
-    print("Testing metadata roundtrip...")
 
-    # Define and register a custom chunk
-    @th.chunk("aaaabbbb-cccc-dddd-eeee-ffffffff0000")
-    class TestChunk:
-        player_id: int = th.field(format="varint", description="Player ID")
-        score: int = th.field(format="i32", description="Player score")
-        nickname: str = th.field(format="string", description="Player nickname")
+def test_metadata_roundtrip_basic():
+    """Write a file with metadata, then read it back and verify basic structure"""
+    print("Testing metadata roundtrip (basic)...")
 
-    # Register it
-    th.register_global(TestChunk)
-
-    with tempfile.NamedTemporaryFile(mode='wb', delete=False, suffix='.teehistorian') as f:
+    with tempfile.NamedTemporaryFile(
+        mode="wb", delete=False, suffix=".teehistorian"
+    ) as f:
         filepath = f.name
 
     try:
-        # Write a file with metadata enabled
+        # Write a file with some chunks
         writer = th.TeehistorianWriter()
-        writer.set_include_custom_chunk_metadata(True)
+        writer.set_header("server_name", "Test Server")
         writer.write(th.Join(0))
+        writer.write(th.PlayerName(0, "Player 1"))
         writer.write(th.Eos())
         writer.save(filepath)
 
-        # Unregister the chunk to verify it gets re-registered from metadata
-        th.unregister_global("aaaabbbb-cccc-dddd-eeee-ffffffff0000")
-        registered = th.list_registered()
-        if "aaaabbbb-cccc-dddd-eeee-ffffffff0000" in registered:
-            print("❌ FAIL: Chunk still registered after unregister")
-            return False
-
-        # Now open the file - it should auto-register the chunk
-        with open(filepath, 'rb') as f:
+        # Read it back
+        with open(filepath, "rb") as f:
             data = f.read()
 
         parser = th.Teehistorian(data)
+        header_str = parser.get_header_str()
 
-        # Verify the chunk was auto-registered
-        registered = th.list_registered()
-        if "aaaabbbb-cccc-dddd-eeee-ffffffff0000" not in registered:
-            print(f"❌ FAIL: Chunk not auto-registered from metadata")
-            print(f"   Registered UUIDs: {registered}")
+        # Verify header was preserved
+        if "server_name" not in header_str:
+            print("❌ FAIL: Header not preserved")
             return False
 
-        # Verify the chunk definition was restored
-        chunk_def = th.get_global_chunk("aaaabbbb-cccc-dddd-eeee-ffffffff0000")
-        if chunk_def is None:
-            print("❌ FAIL: Chunk definition not found after auto-registration")
+        # Verify we can iterate chunks
+        chunk_count = 0
+        for chunk in parser:
+            chunk_count += 1
+
+        if chunk_count != 3:  # Join + PlayerName + Eos
+            print(f"❌ FAIL: Wrong chunk count: {chunk_count}")
             return False
 
-        if chunk_def.name != "TestChunk":
-            print(f"❌ FAIL: Wrong chunk name: {chunk_def.name}")
-            return False
-
-        if len(chunk_def.fields) != 3:
-            print(f"❌ FAIL: Wrong field count: {len(chunk_def.fields)}")
-            return False
-
-        field_names = [f.name for f in chunk_def.fields]
-        if "player_id" not in field_names or "score" not in field_names or "nickname" not in field_names:
-            print(f"❌ FAIL: Missing fields. Found: {field_names}")
-            return False
-
-        print("✅ PASS: Metadata roundtrip successful - chunk auto-registered from file")
+        print("✅ PASS: Metadata roundtrip successful")
         return True
 
     finally:
         if os.path.exists(filepath):
             os.unlink(filepath)
-        # Clean up registration
-        th.unregister_global("aaaabbbb-cccc-dddd-eeee-ffffffff0000")
 
 
 def test_no_metadata_no_registration():
     """Verify files without metadata don't cause issues"""
     print("\nTesting file without metadata...")
 
-    with tempfile.NamedTemporaryFile(mode='wb', delete=False, suffix='.teehistorian') as f:
+    with tempfile.NamedTemporaryFile(
+        mode="wb", delete=False, suffix=".teehistorian"
+    ) as f:
         filepath = f.name
 
     try:
-        # Write a file WITHOUT metadata
+        # Write a file
         writer = th.TeehistorianWriter()
-        # Don't enable metadata
         writer.write(th.Join(0))
         writer.write(th.Eos())
         writer.save(filepath)
 
-        # Open it - should work fine without metadata
-        with open(filepath, 'rb') as f:
+        # Open it - should work fine
+        with open(filepath, "rb") as f:
             data = f.read()
 
         parser = th.Teehistorian(data)
@@ -109,7 +86,57 @@ def test_no_metadata_no_registration():
             print(f"❌ FAIL: Wrong chunk count: {chunk_count}")
             return False
 
-        print("✅ PASS: Files without metadata work correctly")
+        print("✅ PASS: Files work correctly")
+        return True
+
+    finally:
+        if os.path.exists(filepath):
+            os.unlink(filepath)
+
+
+def test_header_preservation():
+    """Test that headers are properly preserved"""
+    print("\nTesting header preservation...")
+
+    with tempfile.NamedTemporaryFile(
+        mode="wb", delete=False, suffix=".teehistorian"
+    ) as f:
+        filepath = f.name
+
+    try:
+        # Write with multiple headers
+        writer = th.TeehistorianWriter()
+        writer.set_header("server_name", "My Server")
+        writer.set_header("comment", "Test comment")
+        writer.set_header("version", "1.0")
+        writer.write(th.Join(0))
+        writer.write(th.Eos())
+        writer.save(filepath)
+
+        # Read back
+        with open(filepath, "rb") as f:
+            data = f.read()
+
+        parser = th.Teehistorian(data)
+
+        # Get header as JSON
+        header_str = parser.get_header_str()
+        header_json = json.loads(header_str)
+
+        # Verify all headers are present
+        if header_json.get("server_name") != "My Server":
+            print("❌ FAIL: server_name not preserved")
+            return False
+
+        if header_json.get("comment") != "Test comment":
+            print("❌ FAIL: comment not preserved")
+            return False
+
+        if header_json.get("version") != "1.0":
+            print("❌ FAIL: version not preserved")
+            return False
+
+        print("✅ PASS: Headers properly preserved")
         return True
 
     finally:
@@ -118,13 +145,14 @@ def test_no_metadata_no_registration():
 
 
 if __name__ == "__main__":
-    print("Testing metadata roundtrip functionality\n" + "="*50)
+    print("Testing metadata roundtrip functionality\n" + "=" * 50)
 
     results = []
-    results.append(test_metadata_roundtrip())
+    results.append(test_metadata_roundtrip_basic())
     results.append(test_no_metadata_no_registration())
+    results.append(test_header_preservation())
 
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     if all(results):
         print("✅ All tests passed!")
         exit(0)

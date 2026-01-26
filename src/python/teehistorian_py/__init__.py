@@ -28,79 +28,80 @@ from .utils import calculate_uuid, format_uuid_from_bytes
 if TYPE_CHECKING:
     from os import PathLike
 
-# Import Rust components directly
-from ._rust import (
+# Import Rust components - these are dynamically created by the Rust extension
+# type: ignore[attr-defined] suppresses warnings about unknown Py* imports from _rust
+# which pyright doesn't recognize until the stubs are fully resolved
+from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]  # type: ignore[attr-defined]
     CustomChunk,
     Generic,
     Teehistorian,
     TeehistorianError,
     Unknown,
 )
-from ._rust import (
-    # Chunk types - directly imported
-    PyAntiBot as AntiBot,
+from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
+    PyAntiBot as AntiBot,  # type: ignore
 )
-from ._rust import (
-    PyAuthLogin as AuthLogin,
+from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
+    PyAuthLogin as AuthLogin,  # type: ignore
 )
-from ._rust import (
-    PyConsoleCommand as ConsoleCommand,
+from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
+    PyConsoleCommand as ConsoleCommand,  # type: ignore
 )
-from ._rust import (
-    PyDdnetVersion as DdnetVersion,
+from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
+    PyDdnetVersion as DdnetVersion,  # type: ignore
 )
-from ._rust import (
-    PyDrop as Drop,
+from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
+    PyDrop as Drop,  # type: ignore
 )
-from ._rust import (
-    PyEos as Eos,
+from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
+    PyEos as Eos,  # type: ignore
 )
-from ._rust import (
-    PyInputDiff as InputDiff,
+from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
+    PyInputDiff as InputDiff,  # type: ignore
 )
-from ._rust import (
-    PyInputNew as InputNew,
+from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
+    PyInputNew as InputNew,  # type: ignore
 )
-from ._rust import (
-    PyJoin as Join,
+from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
+    PyJoin as Join,  # type: ignore
 )
-from ._rust import (
-    PyJoinVer6 as JoinVer6,
+from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
+    PyJoinVer6 as JoinVer6,  # type: ignore
 )
-from ._rust import (
-    PyNetMessage as NetMessage,
+from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
+    PyNetMessage as NetMessage,  # type: ignore
 )
-from ._rust import (
-    PyNetMessagePlayerInfo as NetMessagePlayerInfo,
+from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
+    PyNetMessagePlayerInfo as NetMessagePlayerInfo,  # type: ignore
 )
-from ._rust import (
-    PyPlayerDiff as PlayerDiff,
+from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
+    PyPlayerDiff as PlayerDiff,  # type: ignore
 )
-from ._rust import (
-    PyPlayerName as PlayerName,
+from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
+    PyPlayerName as PlayerName,  # type: ignore
 )
-from ._rust import (
-    PyPlayerNew as PlayerNew,
+from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
+    PyPlayerNew as PlayerNew,  # type: ignore
 )
-from ._rust import (
-    PyPlayerOld as PlayerOld,
+from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
+    PyPlayerOld as PlayerOld,  # type: ignore
 )
-from ._rust import (
-    PyPlayerReady as PlayerReady,
+from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
+    PyPlayerReady as PlayerReady,  # type: ignore
 )
-from ._rust import (
-    PyPlayerTeam as PlayerTeam,
+from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
+    PyPlayerTeam as PlayerTeam,  # type: ignore
 )
-from ._rust import (
-    PyTeamLoadFailure as TeamLoadFailure,
+from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
+    PyTeamLoadFailure as TeamLoadFailure,  # type: ignore
 )
-from ._rust import (
-    PyTeamLoadSuccess as TeamLoadSuccess,
+from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
+    PyTeamLoadSuccess as TeamLoadSuccess,  # type: ignore
 )
-from ._rust import (
-    PyTickSkip as TickSkip,
+from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
+    PyTickSkip as TickSkip,  # type: ignore
 )
-from ._rust import (
+from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
     TeehistorianWriter as RustTeehistorianWriter,
 )
 
@@ -212,7 +213,7 @@ class TeehistorianWriter:
         if not self._closed:
             # Automatically write EOS chunk when exiting context
             try:
-                self.write(Eos())
+                self.write(Eos())  # type: ignore[reportUnusedCallResult]
             except Exception:
                 pass  # Don't fail if EOS was already written
             self._closed = True
@@ -231,7 +232,7 @@ class TeehistorianWriter:
             Self for method chaining
 
         Example:
-            >>> writer.write(th.Join(0)).write(th.PlayerName(0, "Player"))
+            >>> _ = writer.write(th.Join(0)).write(th.PlayerName(0, "Player"))
         """
         if self._closed:
             raise ValueError("Cannot write to closed writer")
@@ -255,7 +256,7 @@ class TeehistorianWriter:
             Self for method chaining
         """
         for chunk in chunks:
-            self.write(chunk)
+            self.write(chunk)  # type: ignore[reportUnusedCallResult]
         return self
 
     def set_header(self, key: str, value: str) -> "TeehistorianWriter":
@@ -270,7 +271,7 @@ class TeehistorianWriter:
             Self for method chaining
 
         Example:
-            >>> writer.set_header("server_name", "My Server")
+            >>> _ = writer.set_header("server_name", "My Server")
         """
         if self._closed:
             raise ValueError("Cannot modify header of closed writer")
@@ -288,7 +289,7 @@ class TeehistorianWriter:
             Header field value or None if not set
 
         Example:
-            >>> value = writer.get_header("server_name")
+            >>> server_name = writer.get_header("server_name")
         """
         return self._writer.get_header(key)
 
@@ -303,7 +304,7 @@ class TeehistorianWriter:
             Self for method chaining
 
         Example:
-            >>> writer.update_headers({
+            >>> _ = writer.update_headers({
             ...     "server_name": "My Server",
             ...     "comment": "Generated by script"
             ... })
@@ -323,7 +324,7 @@ class TeehistorianWriter:
             >>> writer.save("output.teehistorian")
         """
         data = self.getvalue()
-        Path(path).write_bytes(data)
+        Path(path).write_bytes(data)  # type: ignore[reportUnusedCallResult]
 
     def getvalue(self) -> bytes:
         """
@@ -387,21 +388,21 @@ def create(**headers: str) -> TeehistorianWriter:
     Example:
         >>> # Basic usage
         >>> with th.create() as writer:
-        ...     writer.write(th.Join(0))
-        ...     writer.write(th.PlayerName(0, "Player"))
+        ...     _ = writer.write(th.Join(0))
+        ...     _ = writer.write(th.PlayerName(0, "Player"))
         ...     # EOS is automatically written on exit
 
         >>> # With headers
         >>> with th.create(server_name="My Server", comment="Test file") as writer:
-        ...     writer.write(th.Join(0))
+        ...     _ = writer.write(th.Join(0))
 
         >>> # Save to file
         >>> with th.create() as writer:
-        ...     writer.write(th.Join(0))
+        ...     _ = writer.write(th.Join(0))
         ...     writer.save("output.teehistorian")
 
         >>> # Method chaining
-        >>> writer = (th.create()
+        >>> _ = (th.create()
         ...     .set_header("server_name", "My Server")
         ...     .write(th.Join(0))
         ...     .write(th.PlayerName(0, "Player")))

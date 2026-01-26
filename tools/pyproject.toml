@@ -1,0 +1,15 @@
+[tool.uv.workspace]
+members = [
+    "shared",
+    "teehistorian-downloader",
+    "teehistorian-header",
+    "teehistorian-map",
+    "teehistorian-demo",
+]
+
+[tool.uv.sources]
+teehistorian-shared = { workspace = true }
+teehistorian-downloader = { workspace = true }
+teehistorian-header = { workspace = true }
+teehistorian-map = { workspace = true }
+teehistorian-demo = { workspace = true }

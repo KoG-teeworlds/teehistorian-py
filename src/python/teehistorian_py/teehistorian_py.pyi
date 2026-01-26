@@ -7,24 +7,43 @@ This helps IDEs and type checkers understand the API.
 """
 
 from os import PathLike
-from typing import Any, Iterator, Protocol, Union, overload, runtime_checkable
+from typing import Any, Dict, Iterator, List, Optional, Union
 
 # ============================================================================
-# Protocols and Base Types
+# Exceptions
 # ============================================================================
 
-@runtime_checkable
-class Chunk(Protocol):
-    """Protocol for all chunk types"""
+class TeehistorianError(Exception):
+    """Base exception for all teehistorian errors"""
 
-    def __repr__(self) -> str: ...
+    def __init__(self, message: str) -> None: ...
+
+class ParseError(TeehistorianError):
+    """Exception raised during parsing"""
+
+    ...
+
+class ValidationError(TeehistorianError):
+    """Exception raised during validation"""
+
+    ...
+
+class FileError(TeehistorianError):
+    """Exception raised for file I/O errors"""
+
+    ...
+
+class WriteError(TeehistorianError):
+    """Exception raised during writing"""
+
+    ...
 
 # ============================================================================
 # Core Parser Class
 # ============================================================================
 
 class Teehistorian:
-    """Main teehistorian parser class"""
+    """High-performance teehistorian file parser"""
 
     def __init__(self, data: bytes) -> None:
         """Create parser from raw file data"""
@@ -34,23 +53,23 @@ class Teehistorian:
         """Register a custom UUID handler"""
         ...
 
+    def get_header_str(self) -> str:
+        """Get the JSON header as a string (must be called before iterating chunks)"""
+        ...
+
     def header(self) -> bytes:
-        """Get the JSON header as bytes"""
+        """Get the header as bytes"""
         ...
 
-    def next_chunk(self) -> Union[Chunk, None]:
-        """Get next chunk from the stream"""
-        ...
-
-    def __iter__(self) -> Iterator[Chunk]:
+    def __iter__(self) -> Iterator[Any]:
         """Iterator support for processing chunks"""
         ...
 
-    def __next__(self) -> Chunk:
+    def __next__(self) -> Any:
         """Get next chunk"""
         ...
 
-    def __enter__(self) -> Teehistorian:
+    def __enter__(self) -> "Teehistorian":
         """Context manager entry"""
         ...
 
@@ -67,44 +86,44 @@ class Teehistorian:
 class TeehistorianWriter:
     """Pythonic teehistorian file writer with context manager support"""
 
-    def __init__(self) -> None:
+    def __init__(self, file: Optional[Any] = None) -> None:
         """Initialize a new teehistorian writer"""
         ...
 
-    def __enter__(self) -> TeehistorianWriter:
+    def __enter__(self) -> "TeehistorianWriter":
         """Context manager entry"""
         ...
 
     def __exit__(
         self,
-        exc_type: type[Exception] | None,
-        exc_val: Exception | None,
-        exc_tb: Any,
+        exc_type: Optional[type],
+        exc_val: Optional[Exception],
+        exc_tb: Optional[Any],
     ) -> None:
         """Context manager exit"""
         ...
 
-    def write(self, chunk: Any) -> TeehistorianWriter:
+    def write(self, chunk: Any) -> "TeehistorianWriter":
         """Write a chunk to the teehistorian file"""
         ...
 
-    def write_all(self, chunks: list[Any]) -> TeehistorianWriter:
+    def write_all(self, chunks: List[Any]) -> "TeehistorianWriter":
         """Write multiple chunks at once"""
         ...
 
-    def set_header(self, key: str, value: str) -> TeehistorianWriter:
+    def set_header(self, key: str, value: str) -> "TeehistorianWriter":
         """Set a header field"""
         ...
 
-    def get_header(self, key: str) -> str | None:
+    def get_header(self, key: str) -> Optional[str]:
         """Get a header field value"""
         ...
 
-    def update_headers(self, headers: dict[str, str]) -> TeehistorianWriter:
+    def update_headers(self, headers: Dict[str, str]) -> "TeehistorianWriter":
         """Update multiple header fields from a dictionary"""
         ...
 
-    def save(self, path: str | PathLike[str]) -> None:
+    def save(self, path: Union[str, PathLike[str]]) -> None:
         """Save the teehistorian to a file"""
         ...
 
@@ -116,10 +135,12 @@ class TeehistorianWriter:
         """Write all data to a file-like object"""
         ...
 
+    @property
     def size(self) -> int:
         """Get the current size of the teehistorian data in bytes"""
         ...
 
+    @property
     def is_empty(self) -> bool:
         """Check if any data has been written"""
         ...
@@ -134,329 +155,309 @@ class TeehistorianWriter:
 # Helper Functions
 # ============================================================================
 
-def parse(path: str | PathLike[str]) -> Teehistorian:
+def parse(path: Union[str, PathLike[str]]) -> Teehistorian:
     """Parse a teehistorian file from a path"""
     ...
 
-def open(path: str | PathLike[str]) -> Teehistorian:
-    """Open and parse a teehistorian file"""
+def open(path: Union[str, PathLike[str]]) -> Teehistorian:
+    """Open and parse a teehistorian file (alias for parse)"""
     ...
 
 def create(**headers: str) -> TeehistorianWriter:
-    """Create a new teehistorian writer"""
+    """Create a new teehistorian writer with optional headers"""
+    ...
+
+def calculate_uuid(name: str) -> str:
+    """Calculate a UUID from a chunk name"""
+    ...
+
+def format_uuid_from_bytes(data: bytes) -> str:
+    """Format a UUID from 16 bytes"""
     ...
 
 # ============================================================================
-# Base Chunk Class
+# Chunk Types - Player Lifecycle
 # ============================================================================
 
-class BaseChunk:
-    """Base class for all chunk types"""
-
-    def __repr__(self) -> str: ...
-
-# ============================================================================
-# Time-related Chunks
-# ============================================================================
-
-class TickSkip(BaseChunk):
-    """Represents a tick skip event"""
-
-    dt: int
-
-    def __init__(self, dt: int) -> None: ...
-    def __repr__(self) -> str: ...
-
-# ============================================================================
-# Player Connection Chunks
-# ============================================================================
-
-class Join(BaseChunk):
-    """Player join chunk"""
+class Join:
+    """Player joins the game"""
 
     client_id: int
 
     def __init__(self, client_id: int) -> None: ...
-    def __repr__(self) -> str: ...
 
-class JoinVer6(BaseChunk):
-    """Version 6 join chunk"""
+class JoinVer6:
+    """Player joins with Teeworlds 0.6 protocol"""
 
     client_id: int
 
     def __init__(self, client_id: int) -> None: ...
-    def __repr__(self) -> str: ...
 
-class Drop(BaseChunk):
-    """Player drop chunk"""
+class Drop:
+    """Player leaves the game"""
 
     client_id: int
     reason: str
 
     def __init__(self, client_id: int, reason: str) -> None: ...
-    def __repr__(self) -> str: ...
 
-# ============================================================================
-# Player State Chunks
-# ============================================================================
-
-class PlayerReady(BaseChunk):
-    """Player ready state chunk"""
+class PlayerReady:
+    """Player becomes ready to play"""
 
     client_id: int
 
     def __init__(self, client_id: int) -> None: ...
-    def __repr__(self) -> str: ...
 
-class PlayerNew(BaseChunk):
-    """New player spawn chunk"""
+# ============================================================================
+# Chunk Types - Player State
+# ============================================================================
 
-    client_id: int
-    x: int
-    y: int
-
-    def __init__(self, client_id: int, x: int, y: int) -> None: ...
-    def __repr__(self) -> str: ...
-
-class PlayerOld(BaseChunk):
-    """Player leaving chunk"""
+class PlayerNew:
+    """New player information"""
 
     client_id: int
-
-    def __init__(self, client_id: int) -> None: ...
-    def __repr__(self) -> str: ...
-
-class PlayerTeam(BaseChunk):
-    """Player team change chunk"""
-
-    client_id: int
+    local: bool
     team: int
 
-    def __init__(self, client_id: int, team: int) -> None: ...
-    def __repr__(self) -> str: ...
+    def __init__(self, client_id: int, local: bool, team: int) -> None: ...
 
-class PlayerName(BaseChunk):
-    """Player name change chunk"""
+class PlayerOld:
+    """Old player information"""
+
+    client_id: int
+
+    def __init__(self, client_id: int) -> None: ...
+
+class PlayerName:
+    """Player's name"""
 
     client_id: int
     name: str
 
     def __init__(self, client_id: int, name: str) -> None: ...
-    def __repr__(self) -> str: ...
 
-class PlayerDiff(BaseChunk):
-    """Player position difference chunk"""
+class PlayerTeam:
+    """Player changes team"""
+
+    client_id: int
+    team: int
+
+    def __init__(self, client_id: int, team: int) -> None: ...
+
+class PlayerDiff:
+    """Difference in player state"""
 
     client_id: int
     dx: int
     dy: int
 
     def __init__(self, client_id: int, dx: int, dy: int) -> None: ...
-    def __repr__(self) -> str: ...
 
 # ============================================================================
-# Authentication Chunks
+# Chunk Types - Input
 # ============================================================================
 
-class AuthLogin(BaseChunk):
-    """Authentication login chunk"""
+class InputNew:
+    """New player input state"""
 
     client_id: int
-    level: int
+    input: bytes
+
+    def __init__(self, client_id: int, input: bytes) -> None: ...
+
+class InputDiff:
+    """Player input difference from previous state"""
+
+    client_id: int
+    input: bytes
+
+    def __init__(self, client_id: int, input: bytes) -> None: ...
+
+# ============================================================================
+# Chunk Types - Communication
+# ============================================================================
+
+class NetMessage:
+    """Network message from/to player"""
+
+    client_id: int
+    msg: bytes
+
+    def __init__(self, client_id: int, msg: bytes) -> None: ...
+
+class NetMessagePlayerInfo:
+    """Parsed network message containing player information"""
+
+    client_id: int
+    message_type: str
     name: str
-
-    def __init__(self, client_id: int, level: int, name: str) -> None: ...
-    def __repr__(self) -> str: ...
-
-# ============================================================================
-# Version and Connection Info Chunks
-# ============================================================================
-
-class DdnetVersion(BaseChunk):
-    """DDNet version information chunk"""
-
-    client_id: int
-    connection_id: str
-    version: int
-    version_str: Union[bytes, list[int]]
+    clan: str
+    country: int
+    skin: str
+    use_custom_color: bool
+    color_body: int
+    color_feet: int
 
     def __init__(
         self,
         client_id: int,
-        connection_id: str,
-        version: int,
-        version_str: Union[bytes, list[int]],
+        message_type: str,
+        name: str,
+        clan: str,
+        country: int,
+        skin: str,
+        use_custom_color: bool = False,
+        color_body: int = 0,
+        color_feet: int = 0,
     ) -> None: ...
-    def __repr__(self) -> str: ...
 
-# ============================================================================
-# Command and Communication Chunks
-# ============================================================================
-
-class ConsoleCommand(BaseChunk):
-    """Console command chunk"""
+class ConsoleCommand:
+    """Console command executed"""
 
     client_id: int
-    flags: int
-    command: str
-    args: str
+    level: int
+    name: str
+    args: List[str]
 
-    def __init__(self, client_id: int, flags: int, command: str, args: str) -> None: ...
-    def __repr__(self) -> str: ...
+    def __init__(
+        self, client_id: int, level: int, name: str, args: List[str]
+    ) -> None: ...
 
-class NetMessage(BaseChunk):
-    """Network message chunk"""
+# ============================================================================
+# Chunk Types - Authentication & Version
+# ============================================================================
+
+class AuthLogin:
+    """Authentication login information"""
 
     client_id: int
-    message: str
+    level: int
+    auth_name: str
 
-    def __init__(self, client_id: int, message: str) -> None: ...
-    def __repr__(self) -> str: ...
+    def __init__(self, client_id: int, level: int, auth_name: str) -> None: ...
 
-# ============================================================================
-# Input Chunks
-# ============================================================================
-
-class InputNew(BaseChunk):
-    """New player input chunk"""
+class DdnetVersion:
+    """DDNet client version information"""
 
     client_id: int
-    input: str
+    connection_id: str
+    version: int
+    version_str: bytes
 
-    def __init__(self, client_id: int, input: str) -> None: ...
-    def __repr__(self) -> str: ...
-
-class InputDiff(BaseChunk):
-    """Input state difference chunk"""
-
-    client_id: int
-    input: list[int]
-
-    def __init__(self, client_id: int, input: list[int]) -> None: ...
-    def __repr__(self) -> str: ...
+    def __init__(
+        self, client_id: int, connection_id: str, version: int, version_str: bytes
+    ) -> None: ...
 
 # ============================================================================
-# Team Management Chunks
+# Chunk Types - Game Events
 # ============================================================================
 
-class TeamLoadSuccess(BaseChunk):
-    """Successful team load chunk"""
+class TickSkip:
+    """Skip ticks in the game timeline"""
 
-    team: int
-    save: str
+    ticks: int
 
-    def __init__(self, team: int, save: str) -> None: ...
-    def __repr__(self) -> str: ...
+    def __init__(self, ticks: int) -> None: ...
 
-class TeamLoadFailure(BaseChunk):
-    """Failed team load chunk"""
+class TeamLoadSuccess:
+    """Team file loaded successfully"""
 
-    team: int
+    team_id: int
+    team_name: str
 
-    def __init__(self, team: int) -> None: ...
-    def __repr__(self) -> str: ...
+    def __init__(self, team_id: int, team_name: str) -> None: ...
+
+class TeamLoadFailure:
+    """Failed to load team file"""
+
+    team_id: int
+
+    def __init__(self, team_id: int) -> None: ...
+
+class AntiBot:
+    """Anti-bot detection event"""
+
+    detection_event: str
+
+    def __init__(self, detection_event: str) -> None: ...
 
 # ============================================================================
-# Anti-bot Chunks
+# Chunk Types - Special
 # ============================================================================
 
-class AntiBot(BaseChunk):
-    """AntiBot event chunk"""
-
-    data: str
-
-    def __init__(self, data: str) -> None: ...
-    def __repr__(self) -> str: ...
-
-# ============================================================================
-# Special Chunks
-# ============================================================================
-
-class Eos(BaseChunk):
-    """End of stream chunk"""
+class Eos:
+    """End of stream marker"""
 
     def __init__(self) -> None: ...
-    def __repr__(self) -> str: ...
 
-class CustomChunk(BaseChunk):
-    """Custom UUID chunk (registered)"""
-
-    uuid: str
-    data: bytes
-
-    def __init__(self, uuid: str, data: bytes) -> None: ...
-    def __repr__(self) -> str: ...
-
-class Unknown(BaseChunk):
-    """Unknown chunk type"""
+class Unknown:
+    """Unknown chunk with UUID (not registered)"""
 
     uuid: str
     data: bytes
 
     def __init__(self, uuid: str, data: bytes) -> None: ...
-    def __repr__(self) -> str: ...
 
-class Generic(BaseChunk):
-    """Generic fallback chunk"""
+class CustomChunk:
+    """Custom chunk with registered handler"""
+
+    uuid: str
+    data: bytes
+    handler_name: str
+
+    def __init__(self, uuid: str, data: bytes, handler_name: str) -> None: ...
+
+class Generic:
+    """Generic/fallback chunk type"""
 
     data: str
 
     def __init__(self, data: str) -> None: ...
-    def __repr__(self) -> str: ...
-
-# ============================================================================
-# Exception Types
-# ============================================================================
-
-class TeehistorianError(Exception):
-    """Exception raised for teehistorian parsing errors"""
-
-    def __init__(self, message: str) -> None: ...
-
-class ParseError(TeehistorianError):
-    """Parsing error"""
-
-    ...
-
-class ValidationError(TeehistorianError):
-    """Validation error"""
-
-    ...
-
-class FileError(TeehistorianError):
-    """File I/O error"""
-
-    ...
-
-class WriteError(TeehistorianError):
-    """Writing error"""
-
-    ...
 
 # ============================================================================
 # Type Aliases
 # ============================================================================
 
-PlayerChunk = Union[
+PlayerLifecycleChunk = Union[Join, JoinVer6, Drop, PlayerReady]
+
+PlayerStateChunk = Union[PlayerNew, PlayerOld, PlayerName, PlayerTeam, PlayerDiff]
+
+InputChunk = Union[InputNew, InputDiff]
+
+CommunicationChunk = Union[NetMessage, NetMessagePlayerInfo, ConsoleCommand]
+
+AuthVersionChunk = Union[AuthLogin, DdnetVersion]
+
+GameEventChunk = Union[TickSkip, TeamLoadSuccess, TeamLoadFailure, AntiBot]
+
+SpecialChunk = Union[Eos, Unknown, CustomChunk, Generic]
+
+AnyChunk = Union[
     Join,
     JoinVer6,
     Drop,
     PlayerReady,
     PlayerNew,
     PlayerOld,
-    PlayerTeam,
     PlayerName,
+    PlayerTeam,
     PlayerDiff,
-    AuthLogin,
-    DdnetVersion,
-    ConsoleCommand,
-    NetMessage,
     InputNew,
     InputDiff,
+    NetMessage,
+    NetMessagePlayerInfo,
+    ConsoleCommand,
+    AuthLogin,
+    DdnetVersion,
+    TickSkip,
+    TeamLoadSuccess,
+    TeamLoadFailure,
+    AntiBot,
+    Eos,
+    Unknown,
+    CustomChunk,
+    Generic,
 ]
 
-ServerChunk = Union[TickSkip, TeamLoadSuccess, TeamLoadFailure, AntiBot, Eos]
-
-CustomChunkTypes = Union[CustomChunk, Unknown, Generic]
-
-AnyChunk = Union[PlayerChunk, ServerChunk, CustomChunkTypes]
+__version__: str
+__all__: List[str]

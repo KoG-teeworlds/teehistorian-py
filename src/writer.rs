@@ -181,29 +181,8 @@ impl PyTeehistorianWriter {
     /// writer.set_header("config", json.dumps({"sv_motd": "Welcome"}))
     /// ```
     fn set_header(&mut self, key: String, value: String) -> PyResult<()> {
-        if self.header_written {
-            return Err(TeehistorianParseError::Validation(
-                "Cannot modify header after writing has started".to_string(),
-            )
-            .into());
-        }
-
-        // Only parse JSON objects and arrays, not plain values
-        // This preserves string types for fields like "map_size": "299932"
-        let json_value = if (value.starts_with('{') && value.ends_with('}'))
-            || (value.starts_with('[') && value.ends_with(']'))
-        {
-            // Try to parse as JSON object/array
-            match serde_json::from_str::<Value>(&value) {
-                Ok(v) => v,
-                Err(_) => Value::String(value), // If parsing fails, store as string
-            }
-        } else {
-            // Store all other values as strings
-            Value::String(value)
-        };
-
-        self.header_data[key] = json_value;
+        self.ensure_header_not_written()?;
+        self.header_data[key] = Self::parse_header_value(&value);
         Ok(())
     }
 
@@ -244,30 +223,12 @@ impl PyTeehistorianWriter {
         _py: Python<'_>,
         headers: &Bound<'_, pyo3::types::PyDict>,
     ) -> PyResult<()> {
-        if self.header_written {
-            return Err(TeehistorianParseError::Validation(
-                "Cannot modify header after writing has started".to_string(),
-            )
-            .into());
-        }
+        self.ensure_header_not_written()?;
 
         for (key, value) in headers.iter() {
             let key_str = key.extract::<String>()?;
             let value_str = value.extract::<String>()?;
-
-            // Only parse JSON objects and arrays
-            let json_value = if (value_str.starts_with('{') && value_str.ends_with('}'))
-                || (value_str.starts_with('[') && value_str.ends_with(']'))
-            {
-                match serde_json::from_str::<Value>(&value_str) {
-                    Ok(v) => v,
-                    Err(_) => Value::String(value_str),
-                }
-            } else {
-                Value::String(value_str)
-            };
-
-            self.header_data[key_str] = json_value;
+            self.header_data[key_str] = Self::parse_header_value(&value_str);
         }
 
         Ok(())
@@ -429,6 +390,33 @@ impl PyTeehistorianWriter {
 }
 
 impl PyTeehistorianWriter {
+    /// Validates that the header hasn't been written yet
+    fn ensure_header_not_written(&self) -> PyResult<()> {
+        if self.header_written {
+            return Err(TeehistorianParseError::Validation(
+                "Cannot modify header after writing has started".to_string(),
+            )
+            .into());
+        }
+        Ok(())
+    }
+
+    /// Parses a header value string into a JSON value
+    ///
+    /// Only parses JSON objects and arrays. All other values are stored as strings.
+    /// This preserves string types for fields like "map_size": "299932"
+    fn parse_header_value(value: &str) -> Value {
+        let is_json_like = (value.starts_with('{') && value.ends_with('}'))
+            || (value.starts_with('[') && value.ends_with(']'));
+
+        if is_json_like {
+            serde_json::from_str::<Value>(value)
+                .unwrap_or_else(|_| Value::String(value.to_string()))
+        } else {
+            Value::String(value.to_string())
+        }
+    }
+
     /// Write the header to the buffer in teehistorian format
     ///
     /// This method writes a valid teehistorian file header according to the specification:

@@ -67,6 +67,13 @@ class Teehistorian:
             Header data as bytes (typically JSON)
         """
 
+    def get_header_str(self) -> str:
+        """Get the teehistorian header as a JSON string.
+
+        Returns:
+            Header data as JSON string (must be called before iterating chunks)
+        """
+
     @property
     def chunk_count(self) -> int:
         """Number of chunks processed so far."""
@@ -410,3 +417,16 @@ AllChunks = Union[
     Unknown
 ]
 
+# ============================================================================
+# Aliases for Rust class names (PyXxx -> Xxx)
+# ============================================================================
+
+PyCustomChunk = CustomChunk
+PyDdnetVersionOld = DdnetVersionOld
+PyGeneric = Generic
+PyInputDiff = InputDiff
+PyInputNew = InputNew
+PyNetMessagePlayerInfo = NetMessagePlayerInfo
+PyPlayerReady = PlayerReady
+PyPlayerTeam = PlayerTeam
+PyUnknown = Unknown

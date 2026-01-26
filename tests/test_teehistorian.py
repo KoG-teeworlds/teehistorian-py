@@ -400,7 +400,7 @@ class TestWriterChunks:
     def test_write_communication_chunks(self):
         """Test writing communication chunks."""
         writer = th.create()
-        writer.write(th.NetMessage(0, "Hello World"))
+        writer.write(th.NetMessage(0, b"Hello World"))
         writer.write(th.ConsoleCommand(0, 1, "say", ["test", "message"]))
         assert writer.size > 0
 
@@ -695,7 +695,7 @@ class TestEdgeCases:
         """Test writing large messages."""
         writer = th.create()
         writer.write(th.Join(0))
-        large_message = "x" * 10000
+        large_message = b"x" * 10000
         writer.write(th.NetMessage(0, large_message))
         assert writer.size > 0
 

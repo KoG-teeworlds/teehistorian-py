@@ -1,0 +1,27 @@
+[project]
+name = "teehistorian-demo"
+version = "0.1.0"
+description = "Convert teehistorian files to demo files using tee-hee"
+requires-python = ">=3.8"
+dependencies = [
+    "teehistorian-shared",
+    "teehistorian-header",
+    "teehistorian-downloader",
+    "teehistorian-map",
+]
+
+[project.scripts]
+teehistorian-demo = "teehistorian_demo.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["teehistorian_demo"]
+
+[tool.uv.sources]
+teehistorian-shared = { workspace = true }
+teehistorian-header = { workspace = true }
+teehistorian-downloader = { workspace = true }
+teehistorian-map = { workspace = true }
