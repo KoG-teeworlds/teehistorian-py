@@ -21,6 +21,8 @@ file_missing = pytest.mark.skipif(
 @pytest.fixture(scope="module")
 def test_file_bytes():
     """Load the test teehistorian file bytes once per module."""
+    if not TEST_FILE.exists():
+        pytest.skip(f"Test file not found: {TEST_FILE}")
     return TEST_FILE.read_bytes()
 
 
