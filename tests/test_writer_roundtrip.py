@@ -190,12 +190,13 @@ class TestWriterFileOperations:
         """Test writing to a file-like object."""
         with tempfile.NamedTemporaryFile(suffix=".teehistorian", delete=False) as f:
             temp_path = Path(f.name)
-            writer = th.TeehistorianWriter(f)
-
-            writer.write(th.Join(0))
-            writer.write(th.Eos())
 
         try:
+            writer = th.TeehistorianWriter()
+            writer.write(th.Join(0))
+            writer.write(th.Eos())
+            writer.save(str(temp_path))
+
             assert temp_path.exists()
             assert temp_path.stat().st_size > 0
         finally:
@@ -214,13 +215,13 @@ class TestWriterFileOperations:
         """Test writer works with BytesIO objects."""
         from io import BytesIO
 
-        buffer = BytesIO()
-        writer = th.TeehistorianWriter(buffer)
-
+        writer = th.TeehistorianWriter()
         writer.write(th.Join(0))
         writer.write(th.Eos())
 
-        # Get the written data
+        buffer = BytesIO()
+        writer.writeto(buffer)
+
         buffer.seek(0)
         data = buffer.read()
 
@@ -321,12 +322,12 @@ class TestWriterStateManagement:
             temp_path = Path(f.name)
 
         try:
-            with open(temp_path, "wb") as f:
-                with th.TeehistorianWriter(f) as writer:
-                    writer.write(th.Join(0))
-                    writer.write(th.Eos())
+            with th.TeehistorianWriter() as writer:
+                writer.write(th.Join(0))
+                # EOS is auto-written by context manager
 
-            # File should exist and be readable
+            writer.save(str(temp_path))
+
             assert temp_path.exists()
             assert temp_path.stat().st_size > 0
         finally:

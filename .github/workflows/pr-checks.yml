@@ -1,0 +1,44 @@
+name: PR Checks
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  pr-checks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install maturin and dev dependencies
+        run: pip install maturin pytest pytest-cov pytest-benchmark
+
+      - name: Build
+        run: maturin develop
+
+      - name: Run tests
+        run: pytest tests/ -v --tb=short
+
+      - name: Run benchmarks (compare against baseline)
+        continue-on-error: true
+        run: pytest benchmarks/ --benchmark-only --benchmark-compare=0001_baseline || pytest benchmarks/ --benchmark-only
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: .benchmarks/
+          if-no-files-found: ignore

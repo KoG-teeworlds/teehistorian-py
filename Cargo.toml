@@ -27,11 +27,12 @@ pre-rfc3243-libtw2-gamenet-teeworlds-0-7 = "0.1"
 pre-rfc3243-libtw2-packer = "0.1"
 warn = "0.2"
 
+# Logging
+log = "0.4"
+
 # Error handling
 thiserror = "2.0"
 
-# Time handling for writer
-chrono = { version = "0.4", features = ["serde"] }
 uuid = "1.4"
 
 # Data structures
@@ -39,7 +40,7 @@ indexmap = { version = "2.6", optional = true }
 smallvec = { version = "1.13", optional = true }
 
 # Serialization
-serde = { version = "1.0", features = ["derive"] }
+serde = "1.0"
 serde_json = { version = "1.0" }
 
 # Macro utilities

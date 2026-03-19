@@ -212,22 +212,22 @@ class TestValidateUuid:
 
     def test_validate_uuid_invalid_format_raises(self):
         """Test that invalid UUID format raises ValidationError."""
-        with pytest.raises(ValidationError, match="must be in UUID format"):
+        with pytest.raises(ValidationError, match="must be a valid UUID"):
             validate_uuid("not-a-uuid", "uuid")
 
     def test_validate_uuid_wrong_segment_count_raises(self):
         """Test that UUID with wrong segment count raises ValidationError."""
-        with pytest.raises(ValidationError, match="must be in UUID format"):
+        with pytest.raises(ValidationError, match="must be a valid UUID"):
             validate_uuid("12345678-1234-5678-1234", "uuid")
 
     def test_validate_uuid_non_hex_characters_raises(self):
         """Test that non-hex characters in UUID raise ValidationError."""
-        with pytest.raises(ValidationError, match="must contain only hex digits"):
+        with pytest.raises(ValidationError, match="must be a valid UUID"):
             validate_uuid("zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz", "uuid")
 
     def test_validate_uuid_wrong_segment_length_raises(self):
         """Test that wrong segment lengths raise ValidationError."""
-        with pytest.raises(ValidationError, match="must be in UUID format"):
+        with pytest.raises(ValidationError, match="must be a valid UUID"):
             validate_uuid("1234567-1234-5678-1234-567812345678", "uuid")
 
 

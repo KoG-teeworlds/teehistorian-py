@@ -41,6 +41,46 @@ impl UuidHandler {
     }
 }
 
+/// Build a PyNetMessagePlayerInfo from parsed player info fields
+fn build_player_info_chunk(
+    cid: i32,
+    message_type: &str,
+    name: &[u8],
+    clan: &[u8],
+    country: i32,
+    skin: &crate::net_msg::Skin,
+) -> PyNetMessagePlayerInfo {
+    let name = String::from_utf8_lossy(name).to_string();
+    let clan = String::from_utf8_lossy(clan).to_string();
+
+    let (skin_name, use_custom_color, color_body, color_feet) = match skin {
+        crate::net_msg::Skin::V6(skin06) => (
+            String::from_utf8_lossy(skin06.skin).to_string(),
+            skin06.use_custom_color,
+            skin06.color_body,
+            skin06.color_feet,
+        ),
+        crate::net_msg::Skin::V7(_) => (
+            "default".to_string(),
+            false,
+            0,
+            0,
+        ),
+    };
+
+    PyNetMessagePlayerInfo::new(
+        cid,
+        message_type.to_string(),
+        name,
+        clan,
+        country,
+        skin_name,
+        use_custom_color,
+        color_body,
+        color_feet,
+    )
+}
+
 /// Chunk converter that transforms Rust chunks to Python objects
 pub struct ChunkConverter<'a> {
     handlers: &'a Arc<HashMap<String, UuidHandler>>,
@@ -148,68 +188,24 @@ impl<'a> ChunkConverter<'a> {
                 let mut net_ver = self.net_version.borrow_mut();
                 match parse_net_msg(message_bytes, &mut *net_ver) {
                     Ok(ClNetMessage::ClStartInfo(player_info)) => {
-                        let name = String::from_utf8_lossy(player_info.name).to_string();
-                        let clan = String::from_utf8_lossy(player_info.clan).to_string();
-
-                        // Extract skin information including colors
-                        let (skin_name, use_custom_color, color_body, color_feet) = match &player_info.skin {
-                            crate::net_msg::Skin::V6(skin06) => (
-                                String::from_utf8_lossy(skin06.skin).to_string(),
-                                skin06.use_custom_color,
-                                skin06.color_body,
-                                skin06.color_feet,
-                            ),
-                            crate::net_msg::Skin::V7(_) => (
-                                "default".to_string(),
-                                false,
-                                0,
-                                0,
-                            ),
-                        };
-
-                        let obj = PyNetMessagePlayerInfo::new(
+                        let obj = build_player_info_chunk(
                             msg.cid,
-                            "ClStartInfo".to_string(),
-                            name,
-                            clan,
+                            "ClStartInfo",
+                            player_info.name,
+                            player_info.clan,
                             player_info.country,
-                            skin_name,
-                            use_custom_color,
-                            color_body,
-                            color_feet,
+                            &player_info.skin,
                         );
                         Ok(Py::new(py, obj)?.into())
                     }
                     Ok(ClNetMessage::ClChangeInfo(player_info)) => {
-                        let name = String::from_utf8_lossy(player_info.name).to_string();
-                        let clan = String::from_utf8_lossy(player_info.clan).to_string();
-
-                        // Extract skin information including colors
-                        let (skin_name, use_custom_color, color_body, color_feet) = match &player_info.skin {
-                            crate::net_msg::Skin::V6(skin06) => (
-                                String::from_utf8_lossy(skin06.skin).to_string(),
-                                skin06.use_custom_color,
-                                skin06.color_body,
-                                skin06.color_feet,
-                            ),
-                            crate::net_msg::Skin::V7(_) => (
-                                "default".to_string(),
-                                false,
-                                0,
-                                0,
-                            ),
-                        };
-
-                        let obj = PyNetMessagePlayerInfo::new(
+                        let obj = build_player_info_chunk(
                             msg.cid,
-                            "ClChangeInfo".to_string(),
-                            name,
-                            clan,
+                            "ClChangeInfo",
+                            player_info.name,
+                            player_info.clan,
                             player_info.country,
-                            skin_name,
-                            use_custom_color,
-                            color_body,
-                            color_feet,
+                            &player_info.skin,
                         );
                         Ok(Py::new(py, obj)?.into())
                     }
@@ -315,8 +311,8 @@ impl<'a> ChunkConverter<'a> {
                 // For unhandled chunks, create a Generic chunk with debug representation
                 // This is a temporary fallback - ideally all chunks should have explicit handlers
                 let chunk_str = format!("{:?}", chunk);
-                eprintln!(
-                    "Warning: Unhandled chunk type encountered: {}. Using Generic fallback. \
+                log::warn!(
+                    "Unhandled chunk type encountered: {}. Using Generic fallback. \
                      This chunk may not roundtrip correctly.",
                     chunk_str
                 );

@@ -356,23 +356,7 @@ impl PyTeehistorian {
 
 /// Validate UUID string format
 pub fn is_valid_uuid_format(uuid: &str) -> bool {
-    let parts: Vec<&str> = uuid.split('-').collect();
-    if parts.len() != 5 {
-        return false;
-    }
-
-    let expected_lengths = [8, 4, 4, 4, 12];
-    for (part, &expected_len) in parts.iter().zip(expected_lengths.iter()) {
-        if part.len() != expected_len {
-            return false;
-        }
-
-        if !part.chars().all(|c| c.is_ascii_hexdigit()) {
-            return false;
-        }
-    }
-
-    true
+    uuid::Uuid::parse_str(uuid).is_ok()
 }
 
 /// Python module definition

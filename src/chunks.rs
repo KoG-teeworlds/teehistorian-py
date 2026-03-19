@@ -728,7 +728,7 @@ impl PyUnknown {
 impl TeehistorianChunk for PyUnknown {
     fn to_teehistorian_chunk(&self) -> Chunk<'_> {
         // Parse UUID string to uuid::Uuid
-        let uuid_parsed = uuid::Uuid::parse_str(&self.uuid).unwrap_or_default();
+        let uuid_parsed = uuid::Uuid::parse_str(&self.uuid).unwrap();
 
         Chunk::UnknownEx(teehistorian::chunks::UnknownEx {
             uuid: uuid_parsed,
@@ -740,8 +740,13 @@ impl TeehistorianChunk for PyUnknown {
 #[pymethods]
 impl PyUnknown {
     #[new]
-    fn py_new(uuid: String, data: Vec<u8>) -> Self {
-        Self::new(uuid, data)
+    fn py_new(uuid: String, data: Vec<u8>) -> PyResult<Self> {
+        uuid::Uuid::parse_str(&uuid).map_err(|e| {
+            pyo3::PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                "Invalid UUID '{}': {}", uuid, e
+            ))
+        })?;
+        Ok(Self::new(uuid, data))
     }
 
     fn __repr__(&self) -> String {
@@ -808,7 +813,7 @@ impl PyCustomChunk {
 impl TeehistorianChunk for PyCustomChunk {
     fn to_teehistorian_chunk(&self) -> Chunk<'_> {
         // Parse UUID string to uuid::Uuid
-        let uuid_parsed = uuid::Uuid::parse_str(&self.uuid).unwrap_or_default();
+        let uuid_parsed = uuid::Uuid::parse_str(&self.uuid).unwrap();
 
         Chunk::UnknownEx(teehistorian::chunks::UnknownEx {
             uuid: uuid_parsed,
@@ -820,8 +825,13 @@ impl TeehistorianChunk for PyCustomChunk {
 #[pymethods]
 impl PyCustomChunk {
     #[new]
-    fn py_new(uuid: String, data: Vec<u8>, handler_name: String) -> Self {
-        Self::new(uuid, data, handler_name)
+    fn py_new(uuid: String, data: Vec<u8>, handler_name: String) -> PyResult<Self> {
+        uuid::Uuid::parse_str(&uuid).map_err(|e| {
+            pyo3::PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                "Invalid UUID '{}': {}", uuid, e
+            ))
+        })?;
+        Ok(Self::new(uuid, data, handler_name))
     }
 
     fn __repr__(&self) -> String {

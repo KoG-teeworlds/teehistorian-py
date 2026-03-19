@@ -7,6 +7,7 @@ validating constraints, making the API more forgiving of common mistakes.
 
 from __future__ import annotations
 
+import uuid
 from typing import Any
 
 
@@ -180,39 +181,26 @@ def validate_list_int(value: Any, name: str) -> list[int]:
 
 
 def validate_uuid(value: Any, name: str) -> str:
-    """
-    Validate UUID string format.
+    """Validate UUID string format.
+
+    Accepts any format recognized by Python's uuid.UUID (hyphenated, non-hyphenated,
+    uppercase, lowercase). Output is always normalized to lowercase 8-4-4-4-12 format.
 
     Args:
         value: Value to validate
         name: Field name for error messages
 
     Returns:
-        Validated UUID string
+        Validated, normalized UUID string
 
     Raises:
         ValidationError: If validation fails
-
-    Examples:
-        >>> validate_uuid("12345678-1234-5678-1234-567812345678", "uuid")
-        '12345678-1234-5678-1234-567812345678'
     """
     uuid_str = validate_str(value, name)
-
-    parts = uuid_str.split("-")
-    if len(parts) != 5:
-        raise ValidationError(f"{name} must be in UUID format (8-4-4-4-12), got {uuid_str!r}")
-
-    expected_lengths = [8, 4, 4, 4, 12]
-    for part, expected_len in zip(parts, expected_lengths):
-        if len(part) != expected_len:
-            raise ValidationError(
-                f"{name} must be in UUID format (8-4-4-4-12), got {uuid_str!r}"
-            )
-        if not all(c in "0123456789abcdefABCDEF" for c in part):
-            raise ValidationError(f"{name} must contain only hex digits, got {uuid_str!r}")
-
-    return uuid_str.lower()
+    try:
+        return str(uuid.UUID(uuid_str))
+    except ValueError as e:
+        raise ValidationError(f"{name} must be a valid UUID, got {uuid_str!r}") from e
 
 
 # Teeworlds-specific constraints

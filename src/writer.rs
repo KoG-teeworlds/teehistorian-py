@@ -89,8 +89,7 @@ impl PyTeehistorianWriter {
     ///     writer = th.TeehistorianWriter(f)
     /// ```
     #[new]
-    #[pyo3(signature = (_file = None))]
-    fn new(_file: Option<&Bound<'_, PyAny>>) -> Self {
+    fn new() -> Self {
         let default_header = json!({
             "version": "2",
             "version_minor": "9",
@@ -535,7 +534,7 @@ mod tests {
 
     #[test]
     fn test_writer_creation() {
-        let writer = PyTeehistorianWriter::new(None);
+        let writer = PyTeehistorianWriter::new();
         assert!(!writer.header_written);
         assert!(writer.buffer.is_empty());
         assert!(writer.is_empty());
@@ -543,7 +542,7 @@ mod tests {
 
     #[test]
     fn test_header_operations() {
-        let mut writer = PyTeehistorianWriter::new(None);
+        let mut writer = PyTeehistorianWriter::new();
 
         // Test setting and getting header fields
         writer
@@ -560,7 +559,7 @@ mod tests {
 
     #[test]
     fn test_reset() {
-        let mut writer = PyTeehistorianWriter::new(None);
+        let mut writer = PyTeehistorianWriter::new();
         writer.write_header().unwrap();
         assert!(!writer.is_empty());
 
@@ -571,7 +570,7 @@ mod tests {
 
     #[test]
     fn test_json_header_parsing() {
-        let mut writer = PyTeehistorianWriter::new(None);
+        let mut writer = PyTeehistorianWriter::new();
 
         // Test that JSON strings are parsed correctly
         let json_config = r#"{"sv_motd":"Test","sv_name":"Server"}"#;
@@ -589,7 +588,7 @@ mod tests {
 
     #[test]
     fn test_plain_string_header() {
-        let mut writer = PyTeehistorianWriter::new(None);
+        let mut writer = PyTeehistorianWriter::new();
 
         // Test that plain strings are stored as strings
         writer
@@ -603,7 +602,7 @@ mod tests {
 
     #[test]
     fn test_numeric_string_preservation() {
-        let mut writer = PyTeehistorianWriter::new(None);
+        let mut writer = PyTeehistorianWriter::new();
 
         // Test that numeric strings are preserved as strings, not converted to numbers
         writer
@@ -617,7 +616,7 @@ mod tests {
 
     #[test]
     fn test_json_object_parsing() {
-        let mut writer = PyTeehistorianWriter::new(None);
+        let mut writer = PyTeehistorianWriter::new();
 
         // Test that JSON objects are still parsed correctly
         let config_json = r#"{"sv_motd":"Welcome"}"#;

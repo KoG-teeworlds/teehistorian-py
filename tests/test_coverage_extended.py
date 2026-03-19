@@ -14,12 +14,13 @@ class TestTeehistorianWriterAdvanced:
     """Advanced tests for TeehistorianWriter to improve coverage"""
 
     def test_writer_with_file_object(self):
-        """Test writing to a file-like object"""
-        buffer = BytesIO()
-        writer = th.TeehistorianWriter(file=buffer)
+        """Test writing to a file-like object via writeto()"""
+        writer = th.TeehistorianWriter()
         writer.write(th.Join(0))
         writer.write(th.Eos())
-        writer.__exit__(None, None, None)
+
+        buffer = BytesIO()
+        writer.writeto(buffer)
 
         assert buffer.tell() > 0
         buffer.seek(0)
@@ -81,16 +82,29 @@ class TestTeehistorianWriterAdvanced:
 
     def test_writer_context_manager_with_exception(self):
         """Test context manager behavior when exception occurs"""
-        buffer = BytesIO()
         try:
-            with th.TeehistorianWriter(file=buffer) as writer:
+            with th.TeehistorianWriter() as writer:
                 writer.write(th.Join(0))
                 raise RuntimeError("Test error")
         except RuntimeError:
             pass
 
-        # Should still have written data
-        assert buffer.tell() > 0 or writer.size > 0
+        # Writer should be closed but have data from before exception
+        assert writer._closed
+        assert writer.size > 0
+
+    def test_writer_exit_no_eos_on_exception(self):
+        """Test that __exit__ does NOT write EOS when exception is propagating."""
+        writer = th.TeehistorianWriter()
+        writer.write(th.Join(0))
+        size_before = writer.size
+
+        # Simulate exception propagation
+        writer.__exit__(RuntimeError, RuntimeError("test"), None)
+
+        # EOS should NOT have been written (exc_type is not None)
+        assert writer._closed
+        assert writer.size == size_before
 
     def test_writer_write_all(self):
         """Test write_all method"""

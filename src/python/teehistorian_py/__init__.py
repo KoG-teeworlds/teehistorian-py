@@ -28,80 +28,33 @@ from .utils import calculate_uuid, format_uuid_from_bytes
 if TYPE_CHECKING:
     from os import PathLike
 
-# Import Rust components - these are dynamically created by the Rust extension
-# type: ignore[attr-defined] suppresses warnings about unknown Py* imports from _rust
-# which pyright doesn't recognize until the stubs are fully resolved
-from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]  # type: ignore[attr-defined]
+from ._rust import (  # type: ignore[attr-defined]
     CustomChunk,
     Generic,
     Teehistorian,
     TeehistorianError,
     Unknown,
-)
-from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
-    PyAntiBot as AntiBot,  # type: ignore
-)
-from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
-    PyAuthLogin as AuthLogin,  # type: ignore
-)
-from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
-    PyConsoleCommand as ConsoleCommand,  # type: ignore
-)
-from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
-    PyDdnetVersion as DdnetVersion,  # type: ignore
-)
-from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
-    PyDrop as Drop,  # type: ignore
-)
-from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
-    PyEos as Eos,  # type: ignore
-)
-from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
-    PyInputDiff as InputDiff,  # type: ignore
-)
-from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
-    PyInputNew as InputNew,  # type: ignore
-)
-from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
-    PyJoin as Join,  # type: ignore
-)
-from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
-    PyJoinVer6 as JoinVer6,  # type: ignore
-)
-from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
-    PyNetMessage as NetMessage,  # type: ignore
-)
-from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
-    PyNetMessagePlayerInfo as NetMessagePlayerInfo,  # type: ignore
-)
-from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
-    PyPlayerDiff as PlayerDiff,  # type: ignore
-)
-from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
-    PyPlayerName as PlayerName,  # type: ignore
-)
-from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
-    PyPlayerNew as PlayerNew,  # type: ignore
-)
-from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
-    PyPlayerOld as PlayerOld,  # type: ignore
-)
-from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
-    PyPlayerReady as PlayerReady,  # type: ignore
-)
-from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
-    PyPlayerTeam as PlayerTeam,  # type: ignore
-)
-from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
-    PyTeamLoadFailure as TeamLoadFailure,  # type: ignore
-)
-from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
-    PyTeamLoadSuccess as TeamLoadSuccess,  # type: ignore
-)
-from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
-    PyTickSkip as TickSkip,  # type: ignore
-)
-from ._rust import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
+    PyAntiBot as AntiBot,
+    PyAuthLogin as AuthLogin,
+    PyConsoleCommand as ConsoleCommand,
+    PyDdnetVersion as DdnetVersion,
+    PyDrop as Drop,
+    PyEos as Eos,
+    PyInputDiff as InputDiff,
+    PyInputNew as InputNew,
+    PyJoin as Join,
+    PyJoinVer6 as JoinVer6,
+    PyNetMessage as NetMessage,
+    PyNetMessagePlayerInfo as NetMessagePlayerInfo,
+    PyPlayerDiff as PlayerDiff,
+    PyPlayerName as PlayerName,
+    PyPlayerNew as PlayerNew,
+    PyPlayerOld as PlayerOld,
+    PyPlayerReady as PlayerReady,
+    PyPlayerTeam as PlayerTeam,
+    PyTeamLoadFailure as TeamLoadFailure,
+    PyTeamLoadSuccess as TeamLoadSuccess,
+    PyTickSkip as TickSkip,
     TeehistorianWriter as RustTeehistorianWriter,
 )
 
@@ -193,33 +146,19 @@ class TeehistorianWriter:
     following Python best practices.
     """
 
-    def __init__(self, file: Any = None):
-        """Initialize a new teehistorian writer.
-
-        Args:
-            file: Optional file-like object to write to. If provided, data will be
-                  automatically written to this file after each write operation.
-        """
+    def __init__(self) -> None:
         self._writer = RustTeehistorianWriter()
         self._closed = False
-        self._file = file
 
     def __enter__(self) -> "TeehistorianWriter":
         """Enter the context manager."""
         return self
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-        """Exit the context manager, automatically writing EOS if not already present."""
         if not self._closed:
-            # Automatically write EOS chunk when exiting context
-            try:
-                self.write(Eos())  # type: ignore[reportUnusedCallResult]
-            except Exception:
-                pass  # Don't fail if EOS was already written
             self._closed = True
-            # Write to file if one was provided
-            if self._file is not None:
-                self.writeto(self._file)
+            if exc_type is None:
+                self._writer.write(Eos())
 
     def write(self, chunk: Any) -> "TeehistorianWriter":
         """
@@ -237,12 +176,6 @@ class TeehistorianWriter:
         if self._closed:
             raise ValueError("Cannot write to closed writer")
         self._writer.write(chunk)
-        # If a file was provided, flush data to it after each write
-        if self._file is not None:
-            try:
-                self.writeto(self._file)
-            except Exception:
-                pass
         return self
 
     def write_all(self, chunks: Iterable[Any]) -> "TeehistorianWriter":
