@@ -1,259 +1,109 @@
 # teehistorian-py
 
-[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
-[![PyPI version](https://badge.fury.io/py/teehistorian-py.svg)](https://badge.fury.io/py/teehistorian-py)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![Documentation](https://img.shields.io/badge/docs-latest-brightgreen.svg)](https://kog-teeworlds.github.io/teehistorian-py/)
-[![codecov](https://codecov.io/gh/KoG-teeworlds/teehistorian-py/branch/main/graph/badge.svg)](https://codecov.io/gh/KoG-teeworlds/teehistorian-py)
-
+[![PyPI](https://badge.fury.io/py/teehistorian-py.svg)](https://pypi.org/project/teehistorian-py/)
 [![CI](https://github.com/KoG-teeworlds/teehistorian-py/workflows/Build%20and%20Publish/badge.svg)](https://github.com/KoG-teeworlds/teehistorian-py/actions)
+[![codecov](https://codecov.io/gh/KoG-teeworlds/teehistorian-py/branch/main/graph/badge.svg)](https://codecov.io/gh/KoG-teeworlds/teehistorian-py)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
-High-performance Python bindings for parsing Teeworlds/DDNet teehistorian files. Built with Rust for speed and memory safety.
-
-📚 **[Documentation](https://kog-teeworlds.github.io/teehistorian-py/)** | 🐛 **[Issue Tracker](https://github.com/KoG-teeworlds/teehistorian-py/issues)** | 📦 **[PyPI](https://pypi.org/project/teehistorian-py/)**
-
-## Features
-
-- 🚀 **Fast**: Rust-powered parsing with minimal Python overhead
-- 🔒 **Memory Safe**: No buffer overflows or memory leaks
-- 📦 **Simple API**: Clean Python interface for easy integration  
-- 🧩 **Extensible**: Support for custom UUID handlers for mods
-- 🎯 **Complete**: Covers all standard teehistorian chunk types
-
-## Installation
+High-performance Python bindings for parsing and writing Teeworlds/DDNet teehistorian files. Rust-powered, ~14M chunks/sec.
 
 ```bash
 pip install teehistorian-py
 ```
 
-## Quick Start
+## Reading
 
 ```python
 import teehistorian_py as th
 
-# Parse a teehistorian file (modern Pythonic way)
-with th.open("server.teehistorian") as parser:
-    for chunk in parser:
-        if isinstance(chunk, th.Join):
-            print(f"Player {chunk.client_id} joined")
-        elif isinstance(chunk, th.Drop):
-            print(f"Player {chunk.client_id} left: {chunk.reason}")
-        elif isinstance(chunk, th.PlayerName):
-            print(f"Player {chunk.client_id} is now called '{chunk.name}'")
+for chunk in th.parse("server.teehistorian"):
+    match chunk:
+        case th.Join(client_id=cid):
+            print(f"Player {cid} joined")
+        case th.PlayerName(client_id=cid, name=name):
+            print(f"Player {cid}: {name}")
+        case th.Drop(client_id=cid, reason=reason):
+            print(f"Player {cid} left: {reason}")
 ```
 
-Or with Python 3.10+ match statement:
+## Writing
 
 ```python
 import teehistorian_py as th
 
-with th.open("server.teehistorian") as parser:
-    for chunk in parser:
-        match chunk:
-            case th.Join(client_id=cid):
-                print(f"Player {cid} joined")
-            case th.Drop(client_id=cid, reason=reason):
-                print(f"Player {cid} left: {reason}")
-            case th.PlayerName(client_id=cid, name=name):
-                print(f"Player {cid} is now called '{name}'")
-```
+with th.create(server_name="My Server", map_name="dm1") as writer:
+    writer.write(th.Join(0))
+    writer.write(th.PlayerName(0, "Player 1"))
+    writer.write(th.PlayerDiff(0, 10, 5))
+    # EOS auto-written on exit
 
-See the **[full documentation](https://kog-teeworlds.github.io/teehistorian-py/)** for more examples and advanced usage.
-
-## Chunk Types
-
-All chunk types inherit from `ValidatedChunk`, which provides coercive field validation (e.g. integer bounds, string length). The full list of supported chunk types:
-
-| Chunk | Description |
-|---|---|
-| `Join` / `JoinVer6` | Player joined the game |
-| `Drop` | Player dropped / disconnected |
-| `PlayerReady` | Player finished loading |
-| `PlayerNew` / `PlayerOld` | Player added/removed from world |
-| `PlayerTeam` | Player team changed |
-| `PlayerName` | Player display name (scoreboard) |
-| `PlayerDiff` | Player position/state delta per tick |
-| `InputNew` / `InputDiff` | Client input (new or delta) |
-| `NetMessage` | Raw network message |
-| `NetMessagePlayerInfo` | Parsed ClStartInfo/ClChangeInfo (player profile) |
-| `ConsoleCommand` | Console command logged by server |
-| `AuthLogin` | Authentication login event |
-| `DdnetVersion` | DDNet client version |
-| `TickSkip` | Skipped tick marker |
-| `TeamLoadSuccess` / `TeamLoadFailure` | Team save/load result |
-| `AntiBot` | Anti-bot event |
-| `Eos` | End-of-stream marker (required at end of file) |
-| `Unknown` / `CustomChunk` / `Generic` | Unrecognised or extension chunks |
-
-## Implementation Status
-
-The library now **generates valid, working teehistorian files** that are fully compatible with `tee-hee` and other teehistorian tools:
-
-- ✅ **Valid Header Generation**: Proper UUID (699db17b-8efb-34ff-b1d8-da6f60c15dd1) and JSON format
-- ✅ **String Type Preservation**: Header fields like "map_size": "299932" stay as strings, not numbers
-- ✅ **Correct Chunk Serialization**: Uses teehistorian's variable-width encoding
-- ✅ **All 194 Tests Pass**: Comprehensive test coverage including roundtrip and modification tests
-- ✅ **File Modification Works**: Successfully parse, modify, and rewrite teehistorian files
-- ✅ **tee-hee Compatible**: Generated files can be read and replayed by tee-hee
-
-## Writing Teehistorian Files
-
-You can also create and modify teehistorian files:
-
-```python
-import teehistorian_py as th
-
-# Create a new teehistorian file
-writer = th.create()
-
-# Set custom headers
-writer.set_header("server_name", "My Server")
-writer.set_header("comment", "Generated by teehistorian-py")
-writer.set_header("map_name", "Instagib")
-
-# Write chunks
-writer.write(th.Join(0))
-writer.write(th.PlayerName(0, "Player 1"))
-writer.write(th.PlayerDiff(0, 10, 5))
-writer.write(th.PlayerDiff(0, 5, 3))
-writer.write(th.Eos())  # End of stream marker
-
-# Save to file
 writer.save("output.teehistorian")
 ```
 
-### Roundtrip (Parse and Rewrite)
-
-You can parse a teehistorian file and rewrite it with modifications:
+## Roundtrip (parse, modify, rewrite)
 
 ```python
+import json
 import teehistorian_py as th
 from pathlib import Path
 
-# Read original file
-input_file = Path("original.teehistorian")
-parser = th.TeehistorianParser(input_file.read_bytes())
+parser = th.Teehistorian(Path("original.teehistorian").read_bytes())
+headers = json.loads(parser.get_header_str())
 
-# Get headers from original
-headers_dict = {}
-try:
-    import json
-    headers_dict = json.loads(parser.header().decode("utf-8"))
-except:
-    pass
-
-# Create new file with same headers
 writer = th.create()
-for key, value in headers_dict.items():
-    if isinstance(value, (dict, list)):
-        value_str = json.dumps(value)
-    else:
-        value_str = str(value)
-    writer.set_header(key, value_str)
+for k, v in headers.items():
+    writer.set_header(k, json.dumps(v) if isinstance(v, (dict, list)) else str(v))
 
-# Process chunks - modify as needed
 for chunk in parser:
     if isinstance(chunk, th.PlayerName):
-        # Example: rename all players
-        chunk = th.PlayerName(chunk.client_id, "Renamed")
+        chunk = th.PlayerName(chunk.client_id, "Anon")
     writer.write(chunk)
 
-# Save modified file
 writer.save("modified.teehistorian")
 ```
 
-The library generates **valid, working teehistorian files** that can be read by `tee-hee` and replayed. Files generated by the library are fully compatible with all teehistorian tools.
+## Chunk Types
 
-## Development
+All validated chunk wrappers inherit from `ValidatedChunk` with coercive field validation.
 
-### Building from Source
-
-```bash
-# Clone the repository
-git clone https://github.com/KoG-teeworlds/teehistorian-py.git
-cd teehistorian-py
-
-# Install development dependencies
-pip install -e ".[dev]"
-
-# Build extension module
-maturin develop --release
-
-# Run tests with coverage
-pytest tests/ --cov=src/python/teehistorian_py --cov-report=html --cov-report=term-missing
-
-# View coverage report
-open htmlcov/index.html  # On macOS
-# or visit htmlcov/index.html in your browser
-```
-
-### Code Coverage & Security
-
-We maintain **80%+ code coverage** with branch coverage enabled and modern security practices:
-
-- **Coverage**: Branch coverage enabled with automatic PR reports via [Codecov](https://codecov.io/gh/KoG-teeworlds/teehistorian-py)
-- **Security**: OIDC trusted publishing (no API keys required)
-- **Modern CI/CD**: GitHub Actions with hardened runners and security scanning
-- **Automated**: Rust security audits, Python vulnerability scans, and dependency checks
-
-
-### Requirements
-
-- Python 3.8+
-- Rust 1.70+ (for building from source)
+| Category | Types |
+|----------|-------|
+| Player lifecycle | `Join`, `JoinVer6`, `Drop`, `PlayerReady` |
+| Player state | `PlayerNew`, `PlayerOld`, `PlayerTeam`, `PlayerName`, `PlayerDiff` |
+| Input | `InputNew`, `InputDiff` |
+| Communication | `NetMessage`, `NetMessagePlayerInfo`, `ConsoleCommand` |
+| Auth & version | `AuthLogin`, `DdnetVersion` |
+| Server events | `TickSkip`, `TeamLoadSuccess`, `TeamLoadFailure`, `AntiBot` |
+| Special | `Eos`, `Unknown`, `CustomChunk`, `Generic` |
 
 ## Benchmarks
 
-Run benchmarks locally using [pytest-benchmark](https://pytest-benchmark.readthedocs.io/):
-
 ```bash
-# Run all benchmarks
 pytest benchmarks/ --benchmark-only -v
-
-# Save a baseline for future comparisons
-pytest benchmarks/ --benchmark-only --benchmark-save=baseline
-
-# Compare against a saved baseline
-pytest benchmarks/ --benchmark-only --benchmark-compare=0001_baseline
+./run-benchmarks.sh save      # save baseline
+./run-benchmarks.sh compare   # compare against baseline
 ```
 
-Or use the convenience script:
+| Benchmark | Ops/sec | Mean |
+|-----------|---------|------|
+| Write 1000 chunks | ~3,500/s | ~282us |
+| Roundtrip 1000 chunks | ~4,000/s | ~246us |
+| Parse 1.9M chunks | ~7.6/s | ~132ms |
+
+## Development
 
 ```bash
-./run-benchmarks.sh          # run
-./run-benchmarks.sh save     # save baseline
-./run-benchmarks.sh compare  # compare against baseline
+git clone https://github.com/KoG-teeworlds/teehistorian-py.git
+cd teehistorian-py
+pip install -e ".[dev]"
+maturin develop --release
+pytest tests/ -v
 ```
 
-### Current Performance
-
-| Benchmark | Ops/sec | Mean | Description |
-|-----------|---------|------|-------------|
-| Write 1000 chunks | ~3,500/s | ~282µs | Create, write, serialize |
-| Roundtrip 1000 chunks | ~4,000/s | ~246µs | Parse → write → getvalue |
-| Parse 1.9M chunks | ~7.6/s | ~132ms | Full file iteration |
-| Parse + type dispatch | ~2.5/s | ~399ms | Parse + isinstance checks |
-
-Throughput: ~14.5M chunks/sec write, ~14.8M chunks/sec parse.
+Requires Python 3.8+ and Rust 1.70+.
 
 ## License
 
-This project is licensed under the GNU Affero General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
+AGPL-3.0 — see [LICENSE](LICENSE).
 
-## Credits
-
-- Built on top of the excellent [teehistorian](https://crates.io/crates/teehistorian) Rust crate
-- Part of the [KoG-teeworlds](https://github.com/KoG-teeworlds) ecosystem
-
-## Related Projects
-
-- [teehistorian](https://github.com/heinrich5991/teehistorian) - Original Rust implementation
-- [Teeworlds](https://teeworlds.com/) - The game that generates these files
-- [DDNet](https://ddnet.tw/) - Popular Teeworlds modification
-
----
-
-**Need help?** Open an issue or check our [documentation](https://github.com/KoG-teeworlds/teehistorian-py).
-
-# G70zkiPHrpyK0Q39ZsjS
-# CqN9Tqlf4k4asH4duLehmMX8o6PnUDbmkmk015c4
+Built on [teehistorian](https://crates.io/crates/teehistorian) | Part of [KoG-teeworlds](https://github.com/KoG-teeworlds)
