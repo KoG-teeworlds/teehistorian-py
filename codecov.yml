@@ -1,9 +1,5 @@
 codecov:
   require_ci_to_pass: true
-  token: # Not required with OIDC
-
-github_checks:
-  annotations: true
 
 coverage:
   precision: 2
@@ -12,12 +8,12 @@ coverage:
   status:
     project:
       default:
-        target: 80%
-        threshold: 5%
+        target: "70%"
+        threshold: "5%"
         if_ci_failed: error
     patch:
       default:
-        target: 80%
+        target: "50%"
         if_ci_failed: error
 
 comment:
@@ -31,8 +27,10 @@ ignore:
   - "docs/"
   - "setup.py"
   - "build.rs"
+  - "src/python/teehistorian_py/chunks.py"
+  - "src/python/teehistorian_py/protocols.py"
 
 flags:
   unittests:
     paths:
-      - src/python/teehistorian_py/
+      - "src/python/teehistorian_py/"

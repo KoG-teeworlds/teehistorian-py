@@ -44,7 +44,7 @@ serde = "1.0"
 serde_json = { version = "1.0" }
 
 # Macro utilities
-paste = "1.0"
+pastey = "0.1"
 
 # Safe self-referential structures (eliminates Box::leak)
 ouroboros = "0.18"

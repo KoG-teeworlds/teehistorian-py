@@ -3,9 +3,9 @@
 //! This module provides powerful macros that eliminate repetitive code
 //! when defining teehistorian chunk types.
 
-// Re-export paste for use in macros
+// Re-export pastey for use in macros
 #[doc(hidden)]
-pub use paste::paste;
+pub use pastey::paste;
 
 /// Define a simple chunk type with automatic trait implementations
 ///
