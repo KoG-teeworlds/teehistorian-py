@@ -181,7 +181,7 @@ impl<'a> ChunkConverter<'a> {
 
                 // Try to parse the network message to extract player info
                 let mut net_ver = self.net_version.borrow_mut();
-                match parse_net_msg(message_bytes, &mut *net_ver) {
+                match parse_net_msg(message_bytes, &mut net_ver) {
                     Ok(ClNetMessage::ClStartInfo(player_info)) => {
                         let obj = build_player_info_chunk(
                             msg.cid,

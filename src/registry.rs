@@ -1,9 +1,9 @@
+//! Chunk registration system for custom chunk types
+//!
+//! This module provides the infrastructure for registering and managing custom
+//! chunk types that don't have direct teehistorian::Chunk enum variants.
 use parking_lot::RwLock;
 use pyo3::prelude::*;
-///! Chunk registration system for custom chunk types
-///!
-///! This module provides the infrastructure for registering and managing custom
-///! chunk types that don't have direct teehistorian::Chunk enum variants.
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -130,11 +130,13 @@ pub fn list_global() -> Vec<String> {
 /// Instance-level chunk registry
 ///
 /// This allows per-parser or per-writer chunk registrations that override global ones
+#[allow(dead_code)]
 #[derive(Debug, Clone, Default)]
 pub struct InstanceRegistry {
     chunks: HashMap<String, ChunkDef>,
 }
 
+#[allow(dead_code)]
 impl InstanceRegistry {
     /// Create a new empty instance registry
     pub fn new() -> Self {

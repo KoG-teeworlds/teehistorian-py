@@ -1,7 +1,8 @@
-///! Field encoding/decoding helpers for custom chunks
-///!
-///! This module provides utilities to encode and decode field values using
-///! teehistorian-compatible formats (variable-width integers, length-prefixed strings, etc.)
+//! Field encoding/decoding helpers for custom chunks
+//!
+//! This module provides utilities to encode and decode field values using
+//! teehistorian-compatible formats (variable-width integers, length-prefixed strings, etc.)
+#![allow(dead_code)]
 use std::io::{self, Write};
 
 /// Encode a variable-width integer (teehistorian format)

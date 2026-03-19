@@ -12,6 +12,7 @@ pub enum NetVersion {
     Unknown,
 }
 
+#[allow(clippy::enum_variant_names)]
 pub enum Error<'a> {
     NonClientGameMsg06(DdnetGameMsg<'a>),
     NonClientGameMsg07(Tw07GameMsg<'a>),
@@ -49,6 +50,7 @@ impl From<libtw2_gamenet_teeworlds_0_7::enums::Chat> for Chat {
     }
 }
 
+#[allow(dead_code)]
 pub struct ClSay<'a> {
     pub mode: Chat,
     pub target: i32,
@@ -124,6 +126,7 @@ impl From<libtw2_gamenet_teeworlds_0_7::enums::Spec> for Spec {
     }
 }
 
+#[allow(dead_code)]
 pub struct ClSetSpectatorMode {
     pub spec_mode: Spec,
     pub spectator_id: i32,
@@ -224,6 +227,7 @@ impl From<libtw2_gamenet_teeworlds_0_7::enums::Emoticon> for Emoticon {
     }
 }
 
+#[allow(dead_code)]
 pub struct ClCallVote<'a> {
     pub type_: &'a [u8],
     pub value: &'a [u8],
@@ -367,6 +371,7 @@ impl<'a> From<libtw2_gamenet_teeworlds_0_7::msg::game::ClStartInfo<'a>> for ClPl
     }
 }
 
+#[allow(dead_code)]
 pub struct ClShowDistance {
     pub x: i32,
     pub y: i32,
@@ -381,6 +386,7 @@ impl From<libtw2_gamenet_ddnet::msg::game::ClShowDistance> for ClShowDistance {
     }
 }
 
+#[allow(dead_code)]
 pub struct ClCommand<'a> {
     pub name: &'a [u8],
     pub arguments: &'a [u8],
@@ -404,6 +410,7 @@ impl From<libtw2_gamenet_teeworlds_0_7::msg::game::ClReadyChange> for ClReadyCha
     }
 }
 
+#[allow(dead_code)]
 pub struct ClSkinChange<'a> {
     pub skin_part_names: [&'a [u8]; 6],
     pub use_custom_colors: [bool; 6],
@@ -422,6 +429,8 @@ impl<'a> From<libtw2_gamenet_teeworlds_0_7::msg::game::ClSkinChange<'a>> for ClS
     }
 }
 
+#[allow(dead_code)]
+#[allow(clippy::enum_variant_names)]
 pub enum ClNetMessage<'a> {
     ClSay(ClSay<'a>),
     ClSetTeam(Team),
@@ -450,7 +459,7 @@ impl<W: fmt::Debug> Warn<W> for Stdout {
 }
 
 #[allow(clippy::result_large_err)]
-fn parse_ddnet(buf: &[u8]) -> Result<ClNetMessage, Error> {
+fn parse_ddnet(buf: &[u8]) -> Result<ClNetMessage<'_>, Error<'_>> {
     let mut b = Unpacker::new(buf);
     match DdnetGameMsg::decode(&mut Stdout, &mut b) {
         Ok(msg) => match msg {
@@ -502,7 +511,7 @@ fn parse_ddnet(buf: &[u8]) -> Result<ClNetMessage, Error> {
 }
 
 #[allow(clippy::result_large_err)]
-fn parse_teeworlds_07(buf: &[u8]) -> Result<ClNetMessage, Error> {
+fn parse_teeworlds_07(buf: &[u8]) -> Result<ClNetMessage<'_>, Error<'_>> {
     let mut b = Unpacker::new(buf);
     match Tw07GameMsg::decode(&mut Stdout, &mut b) {
         Ok(msg) => match msg {
@@ -577,6 +586,7 @@ pub fn parse_net_msg<'a>(
 
 /// Encode player info back into a ClStartInfo or ClChangeInfo network message
 /// Uses DDNet (0.6) protocol format with the libtw2 library's encoder
+#[allow(clippy::too_many_arguments)]
 pub fn encode_player_info_message(
     message_type: &str,
     name: &str,

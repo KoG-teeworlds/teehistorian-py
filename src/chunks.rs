@@ -434,6 +434,7 @@ pub struct PyNetMessagePlayerInfo {
 }
 
 impl PyNetMessagePlayerInfo {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         client_id: i32,
         message_type: String,
@@ -460,6 +461,7 @@ impl PyNetMessagePlayerInfo {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn with_raw_bytes(
         client_id: i32,
         message_type: String,
@@ -521,6 +523,7 @@ impl TeehistorianChunk for PyNetMessagePlayerInfo {
 #[pymethods]
 impl PyNetMessagePlayerInfo {
     #[new]
+    #[allow(clippy::too_many_arguments)]
     #[pyo3(signature = (client_id, message_type, name, clan, country, skin, use_custom_color=false, color_body=0, color_feet=0))]
     fn py_new(
         client_id: i32,

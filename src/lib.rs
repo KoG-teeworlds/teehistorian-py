@@ -286,9 +286,9 @@ impl PyTeehistorian {
         })?;
 
         // Check for __teehistorian_py metadata
-        if let Some(metadata) = header_json.get("__teehistorian_py") {
-            if let Some(chunks) = metadata.get("chunks") {
-                if let Some(chunks_obj) = chunks.as_object() {
+        if let Some(metadata) = header_json.get("__teehistorian_py")
+            && let Some(chunks) = metadata.get("chunks")
+                && let Some(chunks_obj) = chunks.as_object() {
                     // Register each chunk found in metadata
                     for (uuid, chunk_data) in chunks_obj {
                         if let Some(chunk_obj) = chunk_data.as_object() {
@@ -347,8 +347,6 @@ impl PyTeehistorian {
                         }
                     }
                 }
-            }
-        }
 
         Ok(())
     }
