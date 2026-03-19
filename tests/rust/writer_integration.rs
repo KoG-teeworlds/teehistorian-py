@@ -166,7 +166,7 @@ fn test_writer_state_management() {
 fn test_sequential_writes_ordering() {
     let mut buffer = Vec::new();
 
-    let chunks = vec![b"chunk1".to_vec(), b"chunk2".to_vec(), b"chunk3".to_vec()];
+    let chunks = [b"chunk1".to_vec(), b"chunk2".to_vec(), b"chunk3".to_vec()];
 
     for chunk in chunks.iter() {
         buffer.extend_from_slice(chunk);

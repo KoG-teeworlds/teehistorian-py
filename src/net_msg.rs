@@ -641,8 +641,6 @@ pub fn encode_player_info_message(
 // Test function to check if libtw2 has encode capability
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_libtw2_encode_exists() {
         // Create a ClStartInfo message using the library's types
@@ -665,7 +663,7 @@ mod tests {
             use libtw2_packer::with_packer;
             with_packer(&mut buf, |p| {
                 // Call encode - pass Packer by value (it's Copy)
-                game_msg.encode(p);
+                let _ = game_msg.encode(p);
             });
         }
 
