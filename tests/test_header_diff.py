@@ -1,51 +1,35 @@
 #!/usr/bin/env python3
-"""Analyze the header difference."""
+"""Analyze the header difference between original and roundtripped files."""
 
-import teehistorian_py as th
 import json
 from pathlib import Path
 
-test_file = Path("tests/000c81cc-0922-4150-97e9-cd8f9776eb8e.teehistorian")
+import pytest
+import teehistorian_py as th
 
-with open(test_file, "rb") as f:
-    original_data = f.read()
+TEST_FILE = Path("tests/000c81cc-0922-4150-97e9-cd8f9776eb8e.teehistorian")
 
-# Parse
-parser = th.Teehistorian(original_data)
-header_bytes = parser.header()
-header_json = json.loads(header_bytes.decode("utf-8"))
 
-print("Original header JSON keys order:")
-for key in header_json.keys():
-    print(f"  - {key}")
+@pytest.mark.skipif(not TEST_FILE.exists(), reason=f"Test file not found: {TEST_FILE}")
+def test_header_roundtrip_preserves_content():
+    """Verify header content is preserved during roundtrip (ignoring key order)."""
+    original_data = TEST_FILE.read_bytes()
 
-print("\nOriginal header (first 200 chars):")
-print(header_bytes[:200].decode("utf-8", errors="replace"))
+    parser = th.Teehistorian(original_data)
+    header_json = json.loads(parser.get_header_str())
 
-# Now reconstruct
-writer = th.TeehistorianWriter()
-for key, value in header_json.items():
-    if not key.startswith("__"):
-        if isinstance(value, (dict, list)):
-            value_str = json.dumps(value)
-        else:
-            value_str = str(value)
-        writer.set_header(key, value_str)
+    writer = th.TeehistorianWriter()
+    for key, value in header_json.items():
+        if not key.startswith("__"):
+            if isinstance(value, (dict, list)):
+                writer.set_header(key, json.dumps(value))
+            else:
+                writer.set_header(key, str(value))
 
-# Get the new header
-output_data = writer.getvalue()
-# Extract header from output (16 bytes UUID + JSON + null)
-uuid_size = 16
-header_end = output_data.find(b'\x00', uuid_size)
-new_header_bytes = output_data[uuid_size:header_end]
+    output_data = writer.getvalue()
+    uuid_size = 16
+    header_end = output_data.find(b"\x00", uuid_size)
+    new_header_json = json.loads(output_data[uuid_size:header_end].decode("utf-8"))
 
-print("\nReconstructed header JSON keys order:")
-new_header_json = json.loads(new_header_bytes.decode("utf-8"))
-for key in new_header_json.keys():
-    print(f"  - {key}")
-
-print("\nReconstructed header (first 200 chars):")
-print(new_header_bytes[:200].decode("utf-8", errors="replace"))
-
-print("\nKey order matches:", list(header_json.keys()) == list(new_header_json.keys()))
-print("Header content matches (ignoring order):", header_json == new_header_json)
+    # Content should match even if key order differs
+    assert header_json == new_header_json
