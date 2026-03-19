@@ -743,7 +743,8 @@ impl PyUnknown {
     fn py_new(uuid: String, data: Vec<u8>) -> PyResult<Self> {
         uuid::Uuid::parse_str(&uuid).map_err(|e| {
             pyo3::PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
-                "Invalid UUID '{}': {}", uuid, e
+                "Invalid UUID '{}': {}",
+                uuid, e
             ))
         })?;
         Ok(Self::new(uuid, data))
@@ -828,7 +829,8 @@ impl PyCustomChunk {
     fn py_new(uuid: String, data: Vec<u8>, handler_name: String) -> PyResult<Self> {
         uuid::Uuid::parse_str(&uuid).map_err(|e| {
             pyo3::PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
-                "Invalid UUID '{}': {}", uuid, e
+                "Invalid UUID '{}': {}",
+                uuid, e
             ))
         })?;
         Ok(Self::new(uuid, data, handler_name))

@@ -60,12 +60,7 @@ fn build_player_info_chunk(
             skin06.color_body,
             skin06.color_feet,
         ),
-        crate::net_msg::Skin::V7(_) => (
-            "default".to_string(),
-            false,
-            0,
-            0,
-        ),
+        crate::net_msg::Skin::V7(_) => ("default".to_string(), false, 0, 0),
     };
 
     PyNetMessagePlayerInfo::new(
