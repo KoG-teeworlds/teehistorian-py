@@ -288,65 +288,64 @@ impl PyTeehistorian {
         // Check for __teehistorian_py metadata
         if let Some(metadata) = header_json.get("__teehistorian_py")
             && let Some(chunks) = metadata.get("chunks")
-                && let Some(chunks_obj) = chunks.as_object() {
-                    // Register each chunk found in metadata
-                    for (uuid, chunk_data) in chunks_obj {
-                        if let Some(chunk_obj) = chunk_data.as_object() {
-                            // Extract chunk name
-                            let chunk_name = chunk_obj
-                                .get("name")
-                                .and_then(|v| v.as_str())
-                                .unwrap_or("UnknownChunk")
-                                .to_string();
+            && let Some(chunks_obj) = chunks.as_object()
+        {
+            // Register each chunk found in metadata
+            for (uuid, chunk_data) in chunks_obj {
+                if let Some(chunk_obj) = chunk_data.as_object() {
+                    // Extract chunk name
+                    let chunk_name = chunk_obj
+                        .get("name")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("UnknownChunk")
+                        .to_string();
 
-                            // Extract fields
-                            let mut fields = Vec::new();
-                            if let Some(fields_obj) =
-                                chunk_obj.get("fields").and_then(|v| v.as_object())
-                            {
-                                for (field_name, field_data) in fields_obj {
-                                    if let Some(field_obj) = field_data.as_object() {
-                                        // Parse format string back to enum
-                                        let format_str = field_obj
-                                            .get("format")
-                                            .and_then(|v| v.as_str())
-                                            .unwrap_or("Varint");
+                    // Extract fields
+                    let mut fields = Vec::new();
+                    if let Some(fields_obj) = chunk_obj.get("fields").and_then(|v| v.as_object()) {
+                        for (field_name, field_data) in fields_obj {
+                            if let Some(field_obj) = field_data.as_object() {
+                                // Parse format string back to enum
+                                let format_str = field_obj
+                                    .get("format")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("Varint");
 
-                                        let field_format = match format_str {
-                                            "I8" => registry::FieldFormat::I8,
-                                            "I16" => registry::FieldFormat::I16,
-                                            "I32" => registry::FieldFormat::I32,
-                                            "I64" => registry::FieldFormat::I64,
-                                            "String" => registry::FieldFormat::String,
-                                            "Bytes" => registry::FieldFormat::Bytes,
-                                            "Uuid" => registry::FieldFormat::Uuid,
-                                            _ => registry::FieldFormat::Varint,
-                                        };
+                                let field_format = match format_str {
+                                    "I8" => registry::FieldFormat::I8,
+                                    "I16" => registry::FieldFormat::I16,
+                                    "I32" => registry::FieldFormat::I32,
+                                    "I64" => registry::FieldFormat::I64,
+                                    "String" => registry::FieldFormat::String,
+                                    "Bytes" => registry::FieldFormat::Bytes,
+                                    "Uuid" => registry::FieldFormat::Uuid,
+                                    _ => registry::FieldFormat::Varint,
+                                };
 
-                                        fields.push(registry::FieldSpec {
-                                            name: field_name.clone(),
-                                            format: field_format,
-                                            description: None,
-                                        });
-                                    }
-                                }
+                                fields.push(registry::FieldSpec {
+                                    name: field_name.clone(),
+                                    format: field_format,
+                                    description: None,
+                                });
                             }
-
-                            // Create chunk definition
-                            let chunk_def = registry::ChunkDef {
-                                uuid: uuid.clone(),
-                                name: chunk_name,
-                                fields,
-                            };
-
-                            // Register globally
-                            registry::register_global(chunk_def);
-
-                            // Also register UUID handler for parsing
-                            self.register_custom_uuid(uuid.clone())?;
                         }
                     }
+
+                    // Create chunk definition
+                    let chunk_def = registry::ChunkDef {
+                        uuid: uuid.clone(),
+                        name: chunk_name,
+                        fields,
+                    };
+
+                    // Register globally
+                    registry::register_global(chunk_def);
+
+                    // Also register UUID handler for parsing
+                    self.register_custom_uuid(uuid.clone())?;
                 }
+            }
+        }
 
         Ok(())
     }
