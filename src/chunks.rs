@@ -108,7 +108,7 @@ define_chunk! {
 // For now, create a simple struct that matches the inline variant
 /// Player becomes ready to play
 /// Category: PlayerLifecycle
-#[pyclass(module = "teehistorian_py", frozen)]
+#[pyclass(module = "teehistorian_py", frozen, skip_from_py_object)]
 #[derive(Debug, Clone)]
 pub struct PyPlayerReady {
     #[pyo3(get)]
@@ -183,7 +183,7 @@ define_inline_chunk! {
 // PlayerTeam is an inline variant { cid, team } in teehistorian 0.12
 /// Player changes team
 /// Category: PlayerState
-#[pyclass(module = "teehistorian_py", frozen)]
+#[pyclass(module = "teehistorian_py", frozen, skip_from_py_object)]
 #[derive(Debug, Clone)]
 pub struct PyPlayerTeam {
     #[pyo3(get)]
@@ -270,7 +270,7 @@ define_inline_chunk! {
 
 /// New player input state
 /// Category: Input
-#[pyclass(module = "teehistorian_py", frozen)]
+#[pyclass(module = "teehistorian_py", frozen, skip_from_py_object)]
 #[derive(Debug, Clone)]
 pub struct PyInputNew {
     #[pyo3(get)]
@@ -332,7 +332,7 @@ impl PyInputNew {
 
 /// Player input difference from previous state
 /// Category: Input
-#[pyclass(module = "teehistorian_py", frozen)]
+#[pyclass(module = "teehistorian_py", frozen, skip_from_py_object)]
 #[derive(Debug, Clone)]
 pub struct PyInputDiff {
     #[pyo3(get)]
@@ -405,7 +405,7 @@ define_chunk_custom! {
 
 /// Parsed network message containing player information
 /// This is used when a NetMessage contains ClStartInfo or ClChangeInfo
-#[pyclass(module = "teehistorian_py", frozen)]
+#[pyclass(module = "teehistorian_py", frozen, skip_from_py_object)]
 #[derive(Debug, Clone)]
 pub struct PyNetMessagePlayerInfo {
     #[pyo3(get)]
@@ -611,7 +611,7 @@ define_chunk_custom! {
 }
 
 /// DDNet client version information (old format)
-#[pyclass(module = "teehistorian_py", frozen)]
+#[pyclass(module = "teehistorian_py", frozen, skip_from_py_object)]
 #[derive(Debug, Clone)]
 pub struct PyDdnetVersionOld {
     #[pyo3(get)]
@@ -713,7 +713,12 @@ define_zero_field_chunk! {
 // ----------------------------------------------------------------------------
 
 /// Unknown chunk with UUID (not registered)
-#[pyclass(name = "Unknown", module = "teehistorian_py", frozen)]
+#[pyclass(
+    name = "Unknown",
+    module = "teehistorian_py",
+    frozen,
+    skip_from_py_object
+)]
 #[derive(Debug, Clone)]
 pub struct PyUnknown {
     #[pyo3(get)]
@@ -793,7 +798,12 @@ impl PyUnknown {
 }
 
 /// Custom chunk with registered handler
-#[pyclass(name = "CustomChunk", module = "teehistorian_py", frozen)]
+#[pyclass(
+    name = "CustomChunk",
+    module = "teehistorian_py",
+    frozen,
+    skip_from_py_object
+)]
 #[derive(Debug, Clone)]
 pub struct PyCustomChunk {
     #[pyo3(get)]
@@ -880,7 +890,12 @@ impl PyCustomChunk {
 }
 
 /// Generic/fallback chunk type
-#[pyclass(name = "Generic", module = "teehistorian_py", frozen)]
+#[pyclass(
+    name = "Generic",
+    module = "teehistorian_py",
+    frozen,
+    skip_from_py_object
+)]
 #[derive(Debug, Clone)]
 pub struct PyGeneric {
     #[pyo3(get)]

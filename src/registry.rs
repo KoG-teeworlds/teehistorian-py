@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 /// Field format types for custom chunks
-#[pyclass(module = "teehistorian_py")]
+#[pyclass(module = "teehistorian_py", from_py_object)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum FieldFormat {
     /// Variable-width integer (teehistorian format)
@@ -37,7 +37,7 @@ impl FieldFormat {
 }
 
 /// Field specification for a custom chunk
-#[pyclass(module = "teehistorian_py")]
+#[pyclass(module = "teehistorian_py", from_py_object)]
 #[derive(Debug, Clone)]
 pub struct FieldSpec {
     /// Field name
@@ -68,7 +68,7 @@ impl FieldSpec {
 }
 
 /// Custom chunk definition
-#[pyclass(module = "teehistorian_py")]
+#[pyclass(module = "teehistorian_py", from_py_object)]
 #[derive(Debug, Clone)]
 pub struct ChunkDef {
     /// UUID string for this chunk type
