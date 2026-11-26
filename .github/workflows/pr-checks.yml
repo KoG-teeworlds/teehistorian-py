@@ -29,7 +29,7 @@ jobs:
       - name: Build
         run: |
           source .venv/bin/activate
-          maturin develop --skip-install
+          maturin develop
 
       - name: Run tests
         run: |
