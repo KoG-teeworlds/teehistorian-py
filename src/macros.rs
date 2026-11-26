@@ -49,7 +49,7 @@ macro_rules! define_chunk {
     ) => {
         $crate::macros::paste! {
             $(#[$meta])*
-            #[pyclass(module = "teehistorian_py", frozen)]
+            #[pyclass(module = "teehistorian_py", frozen, skip_from_py_object)]
             #[derive(Debug, Clone)]
             pub struct [<Py $name>] {
             $(
@@ -176,7 +176,7 @@ macro_rules! define_chunk_custom {
     ) => {
         $crate::macros::paste! {
             $(#[$meta])*
-            #[pyclass(module = "teehistorian_py", frozen)]
+            #[pyclass(module = "teehistorian_py", frozen, skip_from_py_object)]
             #[derive(Debug, Clone)]
             pub struct [<Py $name>] {
             $(
@@ -253,7 +253,7 @@ macro_rules! define_chunk_custom {
     ) => {
         $crate::macros::paste! {
             $(#[$meta])*
-            #[pyclass(module = "teehistorian_py", frozen)]
+            #[pyclass(module = "teehistorian_py", frozen, skip_from_py_object)]
             #[derive(Debug, Clone)]
             pub struct [<Py $name>] {
             $(
@@ -371,7 +371,7 @@ macro_rules! define_inline_chunk {
     ) => {
         $crate::macros::paste! {
             $(#[$meta])*
-            #[pyclass(module = "teehistorian_py", frozen)]
+            #[pyclass(module = "teehistorian_py", frozen, skip_from_py_object)]
             #[derive(Debug, Clone)]
             pub struct [<Py $name>] {
             $(
@@ -463,7 +463,7 @@ macro_rules! define_zero_field_chunk {
     ) => {
         $crate::macros::paste! {
             $(#[$meta])*
-            #[pyclass(module = "teehistorian_py", frozen)]
+            #[pyclass(module = "teehistorian_py", frozen, skip_from_py_object)]
             #[derive(Debug, Clone)]
             pub struct [<Py $name>];
 

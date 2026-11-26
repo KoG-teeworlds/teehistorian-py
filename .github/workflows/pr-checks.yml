@@ -19,20 +19,28 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      - name: Install dependencies
+      - name: Create virtual environment and install dependencies
         run: |
+          python -m venv .venv
+          source .venv/bin/activate
           pip install maturin
           pip install pytest pytest-cov pytest-benchmark
 
       - name: Build
-        run: maturin develop --skip-install
+        run: |
+          source .venv/bin/activate
+          maturin develop
 
       - name: Run tests
-        run: pytest tests/ -v --tb=short
+        run: |
+          source .venv/bin/activate
+          pytest tests/ -v --tb=short
 
       - name: Run benchmarks
         continue-on-error: true
-        run: pytest benchmarks/ --benchmark-only
+        run: |
+          source .venv/bin/activate
+          pytest benchmarks/ --benchmark-only
 
       - name: Upload benchmark results
         if: always()

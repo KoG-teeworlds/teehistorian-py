@@ -18,7 +18,10 @@ jobs:
   # Run tests first
   test:
     name: Test Suite
-    runs-on: ubuntu-latest
+    # Python 3.8-3.10 are not published for the Ubuntu 26.04 runner used by
+    # ubuntu-latest. Pin the supported image until those Python versions leave
+    # the package's compatibility matrix.
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       id-token: write # For OIDC token access
