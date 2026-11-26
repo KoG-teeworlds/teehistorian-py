@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795730359757,
+  "lastUpdate": 1795730468137,
   "repoUrl": "https://github.com/KoG-teeworlds/teehistorian-py",
   "entries": {
     "Benchmark": [
@@ -85,6 +85,33 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000015207996145657034",
             "extra": "mean: 369.88365950566316 usec\nrounds: 2514"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "KoG-teeworlds",
+            "username": "KoG-teeworlds"
+          },
+          "committer": {
+            "name": "KoG-teeworlds",
+            "username": "KoG-teeworlds"
+          },
+          "id": "9c4e867e17dc29a38066c17f45f6411b35c9a07e",
+          "message": "fix(security): update Python and PyO3 dependencies",
+          "timestamp": "2026-11-22T19:52:36Z",
+          "url": "https://github.com/KoG-teeworlds/teehistorian-py/pull/9/commits/9c4e867e17dc29a38066c17f45f6411b35c9a07e"
+        },
+        "date": 1795730467367,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "benchmarks/test_benchmarks.py::test_write_chunks",
+            "value": 3341.690962671955,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000011851942553895799",
+            "extra": "mean: 299.2496945918717 usec\nrounds: 2829"
           }
         ]
       }
