@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795731016802,
+  "lastUpdate": 1795731166034,
   "repoUrl": "https://github.com/KoG-teeworlds/teehistorian-py",
   "entries": {
     "Benchmark": [
@@ -58,6 +58,33 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.0000773565246893063",
             "extra": "mean: 218.34668913311341 usec\nrounds: 4095"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "KoG-teeworlds",
+            "username": "KoG-teeworlds"
+          },
+          "committer": {
+            "name": "KoG-teeworlds",
+            "username": "KoG-teeworlds"
+          },
+          "id": "75e3e037d43fe82411998e0dd2f517572101b497",
+          "message": "ci: support Python 3.15 and test 3.16-dev",
+          "timestamp": "2026-11-22T19:52:36Z",
+          "url": "https://github.com/KoG-teeworlds/teehistorian-py/pull/14/commits/75e3e037d43fe82411998e0dd2f517572101b497"
+        },
+        "date": 1795731165267,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "benchmarks/test_benchmarks.py::test_write_chunks",
+            "value": 5330.983705449308,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000009450941483412006",
+            "extra": "mean: 187.58264051300785 usec\nrounds: 4601"
           }
         ]
       }
