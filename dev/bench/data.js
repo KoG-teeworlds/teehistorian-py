@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795728380567,
+  "lastUpdate": 1795730359757,
   "repoUrl": "https://github.com/KoG-teeworlds/teehistorian-py",
   "entries": {
     "Benchmark": [
@@ -58,6 +58,33 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.000007814169463528712",
             "extra": "mean: 253.23638101889992 usec\nrounds: 3572"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "KoG-teeworlds",
+            "username": "KoG-teeworlds"
+          },
+          "committer": {
+            "name": "KoG-teeworlds",
+            "username": "KoG-teeworlds"
+          },
+          "id": "b9f9f71433b15c9ba6dc40e26e2239cb60d7f6b5",
+          "message": "chore(deps): update virtualenv security fixes",
+          "timestamp": "2026-11-22T19:52:36Z",
+          "url": "https://github.com/KoG-teeworlds/teehistorian-py/pull/9/commits/b9f9f71433b15c9ba6dc40e26e2239cb60d7f6b5"
+        },
+        "date": 1795730359335,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "benchmarks/test_benchmarks.py::test_write_chunks",
+            "value": 2703.5527909950542,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000015207996145657034",
+            "extra": "mean: 369.88365950566316 usec\nrounds: 2514"
           }
         ]
       }
