@@ -15,9 +15,30 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
+  python-support:
+    name: Load Python support policy
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    outputs:
+      stable: ${{ steps.policy.outputs.stable }}
+      prerelease: ${{ steps.policy.outputs.prerelease }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.15"
+
+      - name: Validate and export support policy
+        id: policy
+        run: python scripts/python_support.py --github-output "$GITHUB_OUTPUT"
+
   # Run tests first
   test:
-    name: Test Suite
+    name: Test Suite (${{ matrix.python-version }})
+    needs: python-support
     # Python 3.8-3.10 are not published for the Ubuntu 26.04 runner used by
     # ubuntu-latest. Pin the supported image until those Python versions leave
     # the package's compatibility matrix.
@@ -26,8 +47,9 @@ jobs:
       contents: read
       id-token: write # For OIDC token access
     strategy:
+      fail-fast: false
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+        python-version: ${{ fromJSON(needs.python-support.outputs.stable) }}
 
     steps:
       - uses: actions/checkout@v4
@@ -103,6 +125,50 @@ jobs:
             coverage.xml
             htmlcov/
             .coverage
+
+  prerelease-compatibility:
+    name: Experimental Python (${{ matrix.python-version }})
+    needs: python-support
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ${{ fromJSON(needs.python-support.outputs.prerelease) }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          allow-prereleases: true
+          check-latest: true
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Create virtual environment and install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install maturin pytest pytest-cov
+
+      - name: Build Python extension
+        run: |
+          source .venv/bin/activate
+          maturin develop --release
+
+      - name: Run Python tests
+        run: |
+          source .venv/bin/activate
+          pytest tests/test_*.py -v
 
   # Build wheels for multiple platforms
   build-wheels:
