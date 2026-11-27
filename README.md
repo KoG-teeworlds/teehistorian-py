@@ -100,7 +100,10 @@ maturin develop --release
 pytest tests/ -v
 ```
 
-Requires Python 3.8+ and Rust 1.70+.
+Requires Python 3.8+ and Rust 1.70+. Python 3.8 through 3.15 are tested as
+required release targets; Python 3.16-dev is tested as an experimental
+compatibility target. `python-support.json` is the source of truth for this
+policy.
 
 ## License
 

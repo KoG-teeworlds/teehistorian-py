@@ -2,7 +2,8 @@
 
 ## Requirements
 
-- Python 3.8 or higher
+- Python 3.8 or higher. Releases 3.8 through 3.15 are required CI targets;
+  Python 3.16-dev is an experimental compatibility target.
 - pip
 
 ## Install from PyPI
