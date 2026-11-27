@@ -1,9 +1,13 @@
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::{Read, Seek, SeekFrom, Take};
+use std::path::{Path, PathBuf};
 
 use ouroboros::self_referencing;
+use pyo3::exceptions::{PyFileNotFoundError, PyPermissionError};
 use pyo3::prelude::*;
-use pyo3::types::PyBytes;
-use teehistorian::{Chunk, Th};
+use pyo3::types::{PyBytes, PyType};
+use teehistorian::{Chunk, Th, ThBufReader};
 
 mod chunks;
 mod encoding;
@@ -26,6 +30,8 @@ const DEFAULT_MAX_CHUNKS: usize = 100_000_000;
 const DEFAULT_MAX_METADATA_CHUNKS: usize = 4_096;
 const DEFAULT_MAX_FIELDS_PER_CHUNK: usize = 256;
 const DEFAULT_MAX_NET_MESSAGE_BYTES: usize = 64 * 1024;
+const DEFAULT_STREAM_MAX_HEADER_BYTES: usize = 4 * 1024 * 1024 - 17;
+const MAX_BATCH_SIZE: usize = 65_536;
 
 /// Safe self-referential parser using `ouroboros`
 ///
@@ -73,13 +79,40 @@ impl TeehistorianParserInner {
     }
 }
 
+type BoundedFile = Take<File>;
+
+enum ParserBackend {
+    Memory(TeehistorianParserInner),
+    File(Th<ThBufReader<BoundedFile>>),
+}
+
+impl ParserBackend {
+    fn next_chunk(&mut self) -> Result<Option<Chunk<'_>>, teehistorian::Error> {
+        match self {
+            Self::Memory(parser) => parser.next_chunk(),
+            Self::File(parser) => match parser.next_chunk() {
+                Ok(chunk) => Ok(Some(chunk)),
+                Err(e) if e.is_eof() => Ok(None),
+                Err(e) => Err(e),
+            },
+        }
+    }
+
+    fn get_header(&mut self) -> Result<Vec<u8>, teehistorian::Error> {
+        match self {
+            Self::Memory(parser) => parser.get_header(),
+            Self::File(parser) => Ok(parser.header()?.to_vec()),
+        }
+    }
+}
+
 /// Main Teehistorian parser
 ///
 /// This struct provides a safe, efficient interface for parsing
 /// teehistorian files from Python
 #[pyclass(name = "Teehistorian", module = "teehistorian_py")]
 pub struct PyTeehistorian {
-    inner: TeehistorianParserInner,
+    inner: ParserBackend,
     header: Box<[u8]>,
     handlers: HashMap<String, UuidHandler>,
     chunk_count: usize,
@@ -126,21 +159,14 @@ impl PyTeehistorian {
         max_fields_per_chunk: usize,
         max_net_message_bytes: usize,
     ) -> PyResult<Self> {
-        for (name, value) in [
-            ("max_input_bytes", max_input_bytes),
-            ("max_header_bytes", max_header_bytes),
-            ("max_chunks", max_chunks),
-            ("max_metadata_chunks", max_metadata_chunks),
-            ("max_fields_per_chunk", max_fields_per_chunk),
-            ("max_net_message_bytes", max_net_message_bytes),
-        ] {
-            if value == 0 {
-                return Err(TeehistorianParseError::Validation(format!(
-                    "{name} must be greater than zero"
-                ))
-                .into());
-            }
-        }
+        validate_limits(
+            max_input_bytes,
+            max_header_bytes,
+            max_chunks,
+            max_metadata_chunks,
+            max_fields_per_chunk,
+            max_net_message_bytes,
+        )?;
 
         // Basic validation
         if data.is_empty() {
@@ -188,30 +214,67 @@ impl PyTeehistorian {
             }
         }
 
-        let mut parser = TeehistorianParserInner::from_data(data.to_vec()).map_err(|e| {
+        let parser = TeehistorianParserInner::from_data(data.to_vec()).map_err(|e| {
             TeehistorianParseError::Parse(format!("Failed to initialize parser: {}", e))
         })?;
-        let header = parser
-            .get_header()
-            .map_err(|e| TeehistorianParseError::Header(format!("Failed to read header: {e}")))?
-            .into_boxed_slice();
-
-        let mut instance = PyTeehistorian {
-            inner: parser,
-            header,
-            handlers: HashMap::new(),
-            chunk_count: 0,
-            net_version: net_msg::NetVersion::Unknown,
+        Self::from_backend(
+            ParserBackend::Memory(parser),
             max_chunks,
             max_metadata_chunks,
             max_fields_per_chunk,
             max_net_message_bytes,
-        };
+        )
+    }
 
-        // Parse header metadata and auto-register custom chunks
-        instance.parse_and_register_metadata()?;
+    /// Open a recording as a bounded file-backed stream.
+    ///
+    /// Unlike the bytes constructor, this keeps only the current parser buffer
+    /// and the bounded JSON header in memory.
+    #[allow(clippy::too_many_arguments)]
+    #[classmethod]
+    #[pyo3(signature = (
+        path,
+        *,
+        max_input_bytes=DEFAULT_MAX_INPUT_BYTES,
+        max_header_bytes=DEFAULT_STREAM_MAX_HEADER_BYTES,
+        max_chunks=DEFAULT_MAX_CHUNKS,
+        max_metadata_chunks=DEFAULT_MAX_METADATA_CHUNKS,
+        max_fields_per_chunk=DEFAULT_MAX_FIELDS_PER_CHUNK,
+        max_net_message_bytes=DEFAULT_MAX_NET_MESSAGE_BYTES,
+    ))]
+    fn from_file(
+        _cls: &Bound<'_, PyType>,
+        path: PathBuf,
+        max_input_bytes: usize,
+        max_header_bytes: usize,
+        max_chunks: usize,
+        max_metadata_chunks: usize,
+        max_fields_per_chunk: usize,
+        max_net_message_bytes: usize,
+    ) -> PyResult<Self> {
+        validate_limits(
+            max_input_bytes,
+            max_header_bytes,
+            max_chunks,
+            max_metadata_chunks,
+            max_fields_per_chunk,
+            max_net_message_bytes,
+        )?;
+        if max_header_bytes > DEFAULT_STREAM_MAX_HEADER_BYTES {
+            return Err(TeehistorianParseError::Validation(format!(
+                "File-backed max_header_bytes cannot exceed {DEFAULT_STREAM_MAX_HEADER_BYTES}"
+            ))
+            .into());
+        }
 
-        Ok(instance)
+        let parser = open_bounded_file(&path, max_input_bytes, max_header_bytes)?;
+        Self::from_backend(
+            ParserBackend::File(parser),
+            max_chunks,
+            max_metadata_chunks,
+            max_fields_per_chunk,
+            max_net_message_bytes,
+        )
     }
 
     /// Register a custom UUID handler
@@ -319,6 +382,29 @@ impl PyTeehistorian {
         self.__next__(py)
     }
 
+    /// Parse at most `max_items` chunks into a bounded batch.
+    ///
+    /// Repeated calls provide a convenient pull-based streaming API without
+    /// materializing the rest of the recording.
+    #[pyo3(signature = (max_items=1024))]
+    fn next_batch(&mut self, py: Python<'_>, max_items: usize) -> PyResult<Vec<Py<PyAny>>> {
+        if max_items == 0 || max_items > MAX_BATCH_SIZE {
+            return Err(TeehistorianParseError::Validation(format!(
+                "max_items must be between 1 and {MAX_BATCH_SIZE}"
+            ))
+            .into());
+        }
+
+        let mut chunks = Vec::with_capacity(max_items.min(1024));
+        for _ in 0..max_items {
+            match self.__next__(py)? {
+                Some(chunk) => chunks.push(chunk),
+                None => break,
+            }
+        }
+        Ok(chunks)
+    }
+
     /// Get the current chunk count
     #[getter]
     fn chunk_count(&self) -> usize {
@@ -348,6 +434,32 @@ impl PyTeehistorian {
 }
 
 impl PyTeehistorian {
+    fn from_backend(
+        mut inner: ParserBackend,
+        max_chunks: usize,
+        max_metadata_chunks: usize,
+        max_fields_per_chunk: usize,
+        max_net_message_bytes: usize,
+    ) -> PyResult<Self> {
+        let header = inner
+            .get_header()
+            .map_err(|e| TeehistorianParseError::Header(format!("Failed to read header: {e}")))?
+            .into_boxed_slice();
+        let mut instance = Self {
+            inner,
+            header,
+            handlers: HashMap::new(),
+            chunk_count: 0,
+            net_version: net_msg::NetVersion::Unknown,
+            max_chunks,
+            max_metadata_chunks,
+            max_fields_per_chunk,
+            max_net_message_bytes,
+        };
+        instance.parse_and_register_metadata()?;
+        Ok(instance)
+    }
+
     /// Parse header metadata and auto-register custom chunks
     ///
     /// This method looks for __teehistorian_py metadata in the file header
@@ -451,6 +563,108 @@ impl PyTeehistorian {
 
         Ok(())
     }
+}
+
+fn validate_limits(
+    max_input_bytes: usize,
+    max_header_bytes: usize,
+    max_chunks: usize,
+    max_metadata_chunks: usize,
+    max_fields_per_chunk: usize,
+    max_net_message_bytes: usize,
+) -> PyResult<()> {
+    for (name, value) in [
+        ("max_input_bytes", max_input_bytes),
+        ("max_header_bytes", max_header_bytes),
+        ("max_chunks", max_chunks),
+        ("max_metadata_chunks", max_metadata_chunks),
+        ("max_fields_per_chunk", max_fields_per_chunk),
+        ("max_net_message_bytes", max_net_message_bytes),
+    ] {
+        if value == 0 {
+            return Err(TeehistorianParseError::Validation(format!(
+                "{name} must be greater than zero"
+            ))
+            .into());
+        }
+    }
+    Ok(())
+}
+
+fn open_bounded_file(
+    path: &Path,
+    max_input_bytes: usize,
+    max_header_bytes: usize,
+) -> PyResult<Th<ThBufReader<BoundedFile>>> {
+    let mut file = File::open(path).map_err(|e| match e.kind() {
+        std::io::ErrorKind::NotFound => {
+            PyFileNotFoundError::new_err(format!("{}: {e}", path.display()))
+        }
+        std::io::ErrorKind::PermissionDenied => {
+            PyPermissionError::new_err(format!("{}: {e}", path.display()))
+        }
+        _ => PyErr::from(TeehistorianParseError::File(format!(
+            "Failed to open {}: {e}",
+            path.display()
+        ))),
+    })?;
+    let file_len = file
+        .metadata()
+        .map_err(|e| {
+            TeehistorianParseError::File(format!("Failed to inspect {}: {e}", path.display()))
+        })?
+        .len();
+    if file_len < 16 {
+        return Err(TeehistorianParseError::Validation(
+            "Data too short to be a valid teehistorian file".to_string(),
+        )
+        .into());
+    }
+    if file_len > max_input_bytes as u64 {
+        return Err(TeehistorianParseError::Validation(format!(
+            "Input is {file_len} bytes, exceeding max_input_bytes={max_input_bytes}"
+        ))
+        .into());
+    }
+
+    file.seek(SeekFrom::Start(16)).map_err(|e| {
+        TeehistorianParseError::File(format!("Failed to seek {}: {e}", path.display()))
+    })?;
+    let mut scanned = 0usize;
+    let mut buffer = [0u8; 8192];
+    loop {
+        let allowed = max_header_bytes
+            .saturating_add(1)
+            .saturating_sub(scanned)
+            .min(buffer.len());
+        if allowed == 0 {
+            return Err(TeehistorianParseError::Validation(format!(
+                "Header exceeds max_header_bytes={max_header_bytes}"
+            ))
+            .into());
+        }
+        let read = file.read(&mut buffer[..allowed]).map_err(|e| {
+            TeehistorianParseError::File(format!("Failed to read {}: {e}", path.display()))
+        })?;
+        if read == 0 {
+            return Err(TeehistorianParseError::Validation(
+                "Truncated header: missing NUL terminator".to_string(),
+            )
+            .into());
+        }
+        if let Some(position) = buffer[..read].iter().position(|byte| *byte == 0) {
+            debug_assert!(scanned + position <= max_header_bytes);
+            break;
+        }
+        scanned += read;
+    }
+
+    file.seek(SeekFrom::Start(0)).map_err(|e| {
+        TeehistorianParseError::File(format!("Failed to rewind {}: {e}", path.display()))
+    })?;
+    let reader = ThBufReader::new(file.take(max_input_bytes as u64));
+    Ok(Th::parse(reader)
+        .map_err(|e| TeehistorianParseError::Parse(format!("Failed to initialize parser: {e}")))?)
 }
 
 /// Validate UUID string format

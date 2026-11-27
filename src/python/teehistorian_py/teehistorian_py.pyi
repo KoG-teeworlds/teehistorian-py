@@ -7,7 +7,7 @@ This helps IDEs and type checkers understand the API.
 """
 
 from os import PathLike
-from typing import Any, Dict, Iterator, List, Optional, Union
+from typing import Any, Dict, Iterable, Iterator, List, Optional, Union
 
 # ============================================================================
 # Exceptions
@@ -59,6 +59,21 @@ class Teehistorian:
         """Create parser from raw file data"""
         ...
 
+    @classmethod
+    def from_file(
+        cls,
+        path: Union[str, PathLike[str]],
+        *,
+        max_input_bytes: int = 1_073_741_824,
+        max_header_bytes: int = 4_194_287,
+        max_chunks: int = 100_000_000,
+        max_metadata_chunks: int = 4_096,
+        max_fields_per_chunk: int = 256,
+        max_net_message_bytes: int = 65_536,
+    ) -> "Teehistorian":
+        """Open a bounded, incrementally read file-backed parser"""
+        ...
+
     def register_custom_uuid(self, uuid_string: str) -> None:
         """Register a custom UUID handler"""
         ...
@@ -77,6 +92,10 @@ class Teehistorian:
 
     def __next__(self) -> Any:
         """Get next chunk"""
+        ...
+
+    def next_batch(self, max_items: int = 1024) -> List[Any]:
+        """Parse a bounded batch without consuming the remaining stream"""
         ...
 
     def __enter__(self) -> "Teehistorian":
@@ -117,7 +136,7 @@ class TeehistorianWriter:
         """Write a chunk to the teehistorian file"""
         ...
 
-    def write_all(self, chunks: List[Any]) -> "TeehistorianWriter":
+    def write_all(self, chunks: Iterable[Any]) -> "TeehistorianWriter":
         """Write multiple chunks at once"""
         ...
 

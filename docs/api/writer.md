@@ -81,7 +81,8 @@ writer.write(th.Drop(0, "quit"))
 
 ### `write_all(chunks)` → `TeehistorianWriter`
 
-Writes multiple chunks at once.
+Writes multiple chunks at once. Any iterable is consumed one item at a time, so a
+generator does not need to be materialized as a list first.
 
 **Parameters:**
 - `chunks`: Iterable of chunk objects
