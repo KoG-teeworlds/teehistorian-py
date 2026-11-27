@@ -1327,7 +1327,9 @@ generator does not need to be materialized as a list first.</p>
 </code></pre></div>
 <h2 id="saving-and-output">Saving and Output<a class="headerlink" href="#saving-and-output" title="Permanent link">&para;</a></h2>
 <h3 id="savepath-none"><code>save(path)</code> → <code>None</code><a class="headerlink" href="#savepath-none" title="Permanent link">&para;</a></h3>
-<p>Saves the teehistorian file to disk.</p>
+<p>Saves the teehistorian file to disk. Data is written and synced to a secure
+temporary file in the destination directory, then atomically renamed into place so
+an interrupted write does not leave a partial recording at the target path.</p>
 <p><strong>Parameters:</strong>
 - <code>path</code> (str | Path): File path to save to</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">writer</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s2">"recording.teehistorian"</span><span class="p">)</span>
