@@ -450,18 +450,17 @@ pub enum ClNetMessage<'a> {
     ClSkinChange(ClSkinChange<'a>),
 }
 
-// copied from https://github.com/heinrich5991/libtw2/blob/2872de4573e65d1690f1a5f344311df86d554eb4/tools/src/warn_stdout.rs
-pub struct Stdout;
-impl<W: fmt::Debug> Warn<W> for Stdout {
-    fn warn(&mut self, warning: W) {
-        println!("WARN: {warning:?}");
-    }
+/// Decoder warnings are expected for malformed or alternate-protocol messages.
+/// Untrusted replay data must not be able to amplify logs or write to stdout.
+struct IgnoreWarnings;
+impl<W> Warn<W> for IgnoreWarnings {
+    fn warn(&mut self, _warning: W) {}
 }
 
 #[allow(clippy::result_large_err)]
 fn parse_ddnet(buf: &[u8]) -> Result<ClNetMessage<'_>, Error<'_>> {
     let mut b = Unpacker::new(buf);
-    match DdnetGameMsg::decode(&mut Stdout, &mut b) {
+    match DdnetGameMsg::decode(&mut IgnoreWarnings, &mut b) {
         Ok(msg) => match msg {
             DdnetGameMsg::SvMotd(_)
             | DdnetGameMsg::SvBroadcast(_)
@@ -513,7 +512,7 @@ fn parse_ddnet(buf: &[u8]) -> Result<ClNetMessage<'_>, Error<'_>> {
 #[allow(clippy::result_large_err)]
 fn parse_teeworlds_07(buf: &[u8]) -> Result<ClNetMessage<'_>, Error<'_>> {
     let mut b = Unpacker::new(buf);
-    match Tw07GameMsg::decode(&mut Stdout, &mut b) {
+    match Tw07GameMsg::decode(&mut IgnoreWarnings, &mut b) {
         Ok(msg) => match msg {
             Game::SvMotd(_)
             | Game::SvBroadcast(_)

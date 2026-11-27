@@ -28,6 +28,11 @@ class TeehistorianError(Exception):
 
     def __init__(self, message: str) -> None: ...
 
+class ParseError(TeehistorianError): ...
+class ValidationError(TeehistorianError): ...
+class FileError(TeehistorianError): ...
+class WriteError(TeehistorianError): ...
+
 # ============================================================================
 # Parser
 # ============================================================================
@@ -40,11 +45,27 @@ class Teehistorian:
     registration for extensibility.
     """
 
-    def __init__(self, data: bytes) -> None:
+    def __init__(
+        self,
+        data: bytes,
+        *,
+        max_input_bytes: int = 1_073_741_824,
+        max_header_bytes: int = 16_777_216,
+        max_chunks: int = 100_000_000,
+        max_metadata_chunks: int = 4_096,
+        max_fields_per_chunk: int = 256,
+        max_net_message_bytes: int = 65_536,
+    ) -> None:
         """Initialize parser with raw teehistorian data.
 
         Args:
             data: Raw bytes from a teehistorian file
+            max_input_bytes: Maximum accepted file size
+            max_header_bytes: Maximum JSON header size
+            max_chunks: Maximum chunks yielded by this parser
+            max_metadata_chunks: Maximum custom definitions in metadata
+            max_fields_per_chunk: Maximum fields per custom definition
+            max_net_message_bytes: Maximum decoded network-message size
 
         Raises:
             TeehistorianError: If data is empty or invalid
@@ -71,7 +92,7 @@ class Teehistorian:
         """Get the teehistorian header as a JSON string.
 
         Returns:
-            Header data as JSON string (must be called before iterating chunks)
+            Header data as a JSON string
         """
 
     @property

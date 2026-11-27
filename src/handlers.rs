@@ -1,6 +1,4 @@
-use std::cell::RefCell;
 use std::collections::HashMap;
-use std::sync::Arc;
 
 use pyo3::prelude::*;
 use teehistorian::Chunk;
@@ -78,22 +76,28 @@ fn build_player_info_chunk(
 
 /// Chunk converter that transforms Rust chunks to Python objects
 pub struct ChunkConverter<'a> {
-    handlers: &'a Arc<HashMap<String, UuidHandler>>,
-    net_version: RefCell<NetVersion>,
+    handlers: &'a HashMap<String, UuidHandler>,
+    net_version: &'a mut NetVersion,
+    max_net_message_bytes: usize,
 }
 
 impl<'a> ChunkConverter<'a> {
     /// Create a new chunk converter
-    pub fn new(handlers: &'a Arc<HashMap<String, UuidHandler>>) -> Self {
+    pub fn new(
+        handlers: &'a HashMap<String, UuidHandler>,
+        net_version: &'a mut NetVersion,
+        max_net_message_bytes: usize,
+    ) -> Self {
         Self {
             handlers,
-            net_version: RefCell::new(NetVersion::Unknown),
+            net_version,
+            max_net_message_bytes,
         }
     }
 
     /// Convert a Rust chunk to a Python object, preserving original serialized bytes
     pub fn convert(
-        &self,
+        &mut self,
         py: Python<'_>,
         chunk: Chunk,
         _chunk_number: usize,
@@ -178,10 +182,17 @@ impl<'a> ChunkConverter<'a> {
             // Communication events
             Chunk::NetMessage(msg) => {
                 let message_bytes = msg.msg;
+                if message_bytes.len() > self.max_net_message_bytes {
+                    return Err(TeehistorianParseError::Validation(format!(
+                        "Network message is {} bytes, exceeding max_net_message_bytes={}",
+                        message_bytes.len(),
+                        self.max_net_message_bytes
+                    ))
+                    .into());
+                }
 
                 // Try to parse the network message to extract player info
-                let mut net_ver = self.net_version.borrow_mut();
-                match parse_net_msg(message_bytes, &mut net_ver) {
+                match parse_net_msg(message_bytes, self.net_version) {
                     Ok(ClNetMessage::ClStartInfo(player_info)) => {
                         let obj = build_player_info_chunk(
                             msg.cid,

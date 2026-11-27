@@ -30,10 +30,14 @@ if TYPE_CHECKING:
 
 from ._rust import (  # type: ignore[attr-defined]
     CustomChunk,
+    FileError,
     Generic,
+    ParseError,
     Teehistorian,
     TeehistorianError,
     Unknown,
+    ValidationError,
+    WriteError,
     PyAntiBot as AntiBot,
     PyAuthLogin as AuthLogin,
     PyConsoleCommand as ConsoleCommand,
@@ -57,23 +61,6 @@ from ._rust import (  # type: ignore[attr-defined]
     PyTickSkip as TickSkip,
     TeehistorianWriter as RustTeehistorianWriter,
 )
-
-
-# Define temporary exception classes for compatibility
-class ParseError(TeehistorianError):
-    pass
-
-
-class ValidationError(TeehistorianError):
-    pass
-
-
-class FileError(TeehistorianError):
-    pass
-
-
-class WriteError(TeehistorianError):
-    pass
 
 
 # Alias for compatibility
