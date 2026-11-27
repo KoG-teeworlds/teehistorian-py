@@ -243,8 +243,7 @@ class TeehistorianWriter:
         Example:
             >>> writer.save("output.teehistorian")
         """
-        data = self.getvalue()
-        Path(path).write_bytes(data)  # type: ignore[reportUnusedCallResult]
+        self._writer.save(Path(path))
 
     def getvalue(self) -> bytes:
         """
