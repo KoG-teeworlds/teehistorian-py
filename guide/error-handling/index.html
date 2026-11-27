@@ -1181,9 +1181,10 @@ limits when recordings come from untrusted users:</p>
 <p>Limits are checked before expensive parsing or network-message decoding. Exceeding
 one raises <code>ValidationError</code>; malformed and truncated input raises a parser error
 instead of being silently accepted. Chunk iteration remains incremental, so callers
-provide natural backpressure by requesting the next chunk only when ready. The input
-<code>bytes</code> object is copied once into Rust-owned memory; set <code>max_input_bytes</code> according
-to the memory available to the process.</p>
+provide natural backpressure by requesting the next chunk only when ready. Immutable
+Python <code>bytes</code> storage is retained and parsed without a second full-size copy. Mutable
+<code>bytearray</code> input is snapshotted once so later Python mutations cannot affect parsing.
+Set <code>max_input_bytes</code> according to the memory available to the process.</p>
 <h2 id="basic-error-handling">Basic Error Handling<a class="headerlink" href="#basic-error-handling" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">teehistorian_py</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">th</span>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
