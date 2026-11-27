@@ -45,7 +45,17 @@ class WriteError(TeehistorianError):
 class Teehistorian:
     """High-performance teehistorian file parser"""
 
-    def __init__(self, data: bytes) -> None:
+    def __init__(
+        self,
+        data: bytes,
+        *,
+        max_input_bytes: int = 1_073_741_824,
+        max_header_bytes: int = 16_777_216,
+        max_chunks: int = 100_000_000,
+        max_metadata_chunks: int = 4_096,
+        max_fields_per_chunk: int = 256,
+        max_net_message_bytes: int = 65_536,
+    ) -> None:
         """Create parser from raw file data"""
         ...
 
@@ -54,7 +64,7 @@ class Teehistorian:
         ...
 
     def get_header_str(self) -> str:
-        """Get the JSON header as a string (must be called before iterating chunks)"""
+        """Get the JSON header as a string"""
         ...
 
     def header(self) -> bytes:

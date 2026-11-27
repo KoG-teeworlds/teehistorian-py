@@ -11,6 +11,30 @@ TeehistorianError (base exception)
 └── FileError (I/O errors)
 ```
 
+## Resource Limits for Untrusted Recordings
+
+`Teehistorian` applies generous limits by default and accepts stricter keyword-only
+limits when recordings come from untrusted users:
+
+```python
+parser = th.Teehistorian(
+    data,
+    max_input_bytes=256 * 1024 * 1024,
+    max_header_bytes=1024 * 1024,
+    max_chunks=10_000_000,
+    max_metadata_chunks=256,
+    max_fields_per_chunk=64,
+    max_net_message_bytes=64 * 1024,
+)
+```
+
+Limits are checked before expensive parsing or network-message decoding. Exceeding
+one raises `ValidationError`; malformed and truncated input raises a parser error
+instead of being silently accepted. Chunk iteration remains incremental, so callers
+provide natural backpressure by requesting the next chunk only when ready. The input
+`bytes` object is copied once into Rust-owned memory; set `max_input_bytes` according
+to the memory available to the process.
+
 ## Basic Error Handling
 
 ```python

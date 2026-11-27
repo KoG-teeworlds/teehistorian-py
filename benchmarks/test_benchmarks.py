@@ -38,6 +38,26 @@ def first_1000_chunks(test_file_bytes):
     return chunks
 
 
+@pytest.fixture(scope="module")
+def synthetic_player_diffs():
+    """Build a deterministic in-memory recording independent of external fixtures."""
+    writer = th.TeehistorianWriter()
+    for i in range(10_000):
+        writer.write(th.PlayerDiff(i % 64, i % 100, i % 50))
+    writer.write(th.Eos())
+    return writer.getvalue()
+
+
+@pytest.fixture(scope="module")
+def malformed_net_messages():
+    """Build hostile-but-valid chunks that exercise bounded network decoding."""
+    writer = th.TeehistorianWriter()
+    for i in range(1_000):
+        writer.write(th.NetMessage(i % 64, b"\xff" * 8))
+    writer.write(th.Eos())
+    return writer.getvalue()
+
+
 @file_missing
 def test_parse_file(benchmark, test_file_bytes):
     """Benchmark: parse the full test teehistorian file and iterate all chunks."""
@@ -103,6 +123,24 @@ def test_write_chunks(benchmark):
     data = benchmark(write_chunks)
     assert isinstance(data, bytes)
     assert len(data) > 0
+
+
+def test_parse_synthetic_player_diffs(benchmark, synthetic_player_diffs):
+    """Benchmark the representative hot path without a repository-external fixture."""
+
+    def parse_all():
+        return sum(1 for _ in th.Teehistorian(synthetic_player_diffs))
+
+    assert benchmark(parse_all) == 10_001
+
+
+def test_parse_malformed_net_messages(benchmark, malformed_net_messages):
+    """Keep malformed network-message decoding bounded and measurable."""
+
+    def parse_all():
+        return sum(1 for _ in th.Teehistorian(malformed_net_messages))
+
+    assert benchmark(parse_all) == 1_001
 
 
 @file_missing

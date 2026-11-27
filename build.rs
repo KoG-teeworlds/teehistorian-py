@@ -227,6 +227,10 @@ fn generate_pyi(chunks: &[ChunkInfo]) -> String {
     pyi.push_str("    writing, or validation of teehistorian files.\n");
     pyi.push_str("    \"\"\"\n\n");
     pyi.push_str("    def __init__(self, message: str) -> None: ...\n\n");
+    pyi.push_str("class ParseError(TeehistorianError): ...\n");
+    pyi.push_str("class ValidationError(TeehistorianError): ...\n");
+    pyi.push_str("class FileError(TeehistorianError): ...\n");
+    pyi.push_str("class WriteError(TeehistorianError): ...\n\n");
 
     // Parser class
     pyi.push_str(
@@ -242,10 +246,26 @@ fn generate_pyi(chunks: &[ChunkInfo]) -> String {
     pyi.push_str("    Rust backend. It supports iteration over chunks and custom UUID handler\n");
     pyi.push_str("    registration for extensibility.\n");
     pyi.push_str("    \"\"\"\n\n");
-    pyi.push_str("    def __init__(self, data: bytes) -> None:\n");
+    pyi.push_str("    def __init__(\n");
+    pyi.push_str("        self,\n");
+    pyi.push_str("        data: bytes,\n");
+    pyi.push_str("        *,\n");
+    pyi.push_str("        max_input_bytes: int = 1_073_741_824,\n");
+    pyi.push_str("        max_header_bytes: int = 16_777_216,\n");
+    pyi.push_str("        max_chunks: int = 100_000_000,\n");
+    pyi.push_str("        max_metadata_chunks: int = 4_096,\n");
+    pyi.push_str("        max_fields_per_chunk: int = 256,\n");
+    pyi.push_str("        max_net_message_bytes: int = 65_536,\n");
+    pyi.push_str("    ) -> None:\n");
     pyi.push_str("        \"\"\"Initialize parser with raw teehistorian data.\n\n");
     pyi.push_str("        Args:\n");
-    pyi.push_str("            data: Raw bytes from a teehistorian file\n\n");
+    pyi.push_str("            data: Raw bytes from a teehistorian file\n");
+    pyi.push_str("            max_input_bytes: Maximum accepted file size\n");
+    pyi.push_str("            max_header_bytes: Maximum JSON header size\n");
+    pyi.push_str("            max_chunks: Maximum chunks yielded by this parser\n");
+    pyi.push_str("            max_metadata_chunks: Maximum custom definitions in metadata\n");
+    pyi.push_str("            max_fields_per_chunk: Maximum fields per custom definition\n");
+    pyi.push_str("            max_net_message_bytes: Maximum decoded network-message size\n\n");
     pyi.push_str("        Raises:\n");
     pyi.push_str("            TeehistorianError: If data is empty or invalid\n");
     pyi.push_str("        \"\"\"\n\n");
@@ -266,9 +286,7 @@ fn generate_pyi(chunks: &[ChunkInfo]) -> String {
     pyi.push_str("    def get_header_str(self) -> str:\n");
     pyi.push_str("        \"\"\"Get the teehistorian header as a JSON string.\n\n");
     pyi.push_str("        Returns:\n");
-    pyi.push_str(
-        "            Header data as JSON string (must be called before iterating chunks)\n",
-    );
+    pyi.push_str("            Header data as a JSON string\n");
     pyi.push_str("        \"\"\"\n\n");
     pyi.push_str("    @property\n");
     pyi.push_str("    def chunk_count(self) -> int:\n");
