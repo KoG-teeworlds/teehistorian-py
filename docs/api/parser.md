@@ -30,6 +30,22 @@ with open("demo.teehistorian", "rb") as f:
 parser = th.Teehistorian(data)
 ```
 
+### File-backed streaming
+
+```python
+parser = Teehistorian.from_file("demo.teehistorian")
+```
+
+`from_file` opens the recording without loading it into a Python `bytes` object.
+Chunks are read incrementally into the upstream parser's bounded buffer (at most 4
+MiB for any single header/chunk), while the total file size, chunk count, metadata,
+and decoded network-message limits remain configurable. The convenience
+`teehistorian_py.parse(path)` and `open(path)` helpers use this file-backed path.
+
+The default file-backed JSON-header ceiling is 4,194,287 bytes so the 16-byte
+format UUID, header, and terminator remain within that bounded buffer. Use the bytes
+constructor only when the recording is already in memory.
+
 ### Methods
 
 #### `__iter__()`
@@ -43,6 +59,17 @@ Returns the next chunk from the parser.
 
 **Raises:**
 - `ParseError`: If chunk parsing fails
+
+#### `next_batch(max_items: int = 1024)`
+
+Pull at most `max_items` chunks from the current parser position. The batch is
+bounded to 65,536 items and parsing stops early at EOF. Repeated calls provide
+batch-oriented backpressure without materializing the remaining recording.
+
+```python
+while batch := parser.next_batch(512):
+    process(batch)
+```
 
 #### `header()`
 Get the header data as bytes.

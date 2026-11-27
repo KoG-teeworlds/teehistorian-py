@@ -199,9 +199,11 @@ fn generate_pyi(chunks: &[ChunkInfo]) -> String {
     pyi.push_str("# Do not edit manually\n\n");
 
     // Imports
+    pyi.push_str("from os import PathLike\n");
     pyi.push_str("from typing import (\n");
     pyi.push_str("    Any,\n");
     pyi.push_str("    Dict,\n");
+    pyi.push_str("    Iterable,\n");
     pyi.push_str("    Iterator,\n");
     pyi.push_str("    List,\n");
     pyi.push_str("    Optional,\n");
@@ -269,6 +271,19 @@ fn generate_pyi(chunks: &[ChunkInfo]) -> String {
     pyi.push_str("        Raises:\n");
     pyi.push_str("            TeehistorianError: If data is empty or invalid\n");
     pyi.push_str("        \"\"\"\n\n");
+    pyi.push_str("    @classmethod\n");
+    pyi.push_str("    def from_file(\n");
+    pyi.push_str("        cls,\n");
+    pyi.push_str("        path: Union[str, PathLike[str]],\n");
+    pyi.push_str("        *,\n");
+    pyi.push_str("        max_input_bytes: int = 1_073_741_824,\n");
+    pyi.push_str("        max_header_bytes: int = 4_194_287,\n");
+    pyi.push_str("        max_chunks: int = 100_000_000,\n");
+    pyi.push_str("        max_metadata_chunks: int = 4_096,\n");
+    pyi.push_str("        max_fields_per_chunk: int = 256,\n");
+    pyi.push_str("        max_net_message_bytes: int = 65_536,\n");
+    pyi.push_str("    ) -> 'Teehistorian':\n");
+    pyi.push_str("        \"\"\"Open a bounded, incrementally read file-backed parser.\"\"\"\n\n");
     pyi.push_str("    def register_custom_uuid(self, uuid_string: str) -> None:\n");
     pyi.push_str("        \"\"\"Register a custom UUID handler for chunk parsing.\n\n");
     pyi.push_str("        Args:\n");
@@ -305,6 +320,10 @@ fn generate_pyi(chunks: &[ChunkInfo]) -> String {
     pyi.push_str("        Raises:\n");
     pyi.push_str("            StopIteration: When end of stream is reached\n");
     pyi.push_str("        \"\"\"\n\n");
+    pyi.push_str("    def next_batch(self, max_items: int = 1024) -> List[Any]:\n");
+    pyi.push_str(
+        "        \"\"\"Parse a bounded batch without consuming the remaining stream.\"\"\"\n\n",
+    );
     pyi.push_str("    def __enter__(self) -> 'Teehistorian':\n");
     pyi.push_str("        \"\"\"Context manager entry.\"\"\"\n\n");
     pyi.push_str("    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> bool:\n");
@@ -336,12 +355,10 @@ fn generate_pyi(chunks: &[ChunkInfo]) -> String {
     pyi.push_str("        Returns:\n");
     pyi.push_str("            Self for method chaining\n");
     pyi.push_str("        \"\"\"\n\n");
-    pyi.push_str("    def write_all(self, chunks: List[Any]) -> 'TeehistorianWriter':\n");
+    pyi.push_str("    def write_all(self, chunks: Iterable[Any]) -> None:\n");
     pyi.push_str("        \"\"\"Write multiple chunks at once.\n\n");
     pyi.push_str("        Args:\n");
-    pyi.push_str("            chunks: List of chunk objects to write\n\n");
-    pyi.push_str("        Returns:\n");
-    pyi.push_str("            Self for method chaining\n");
+    pyi.push_str("            chunks: Iterable of chunk objects to consume lazily\n");
     pyi.push_str("        \"\"\"\n\n");
     pyi.push_str("    def set_header(self, key: str, value: str) -> 'TeehistorianWriter':\n");
     pyi.push_str("        \"\"\"Set a header field value.\n\n");

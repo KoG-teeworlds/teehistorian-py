@@ -129,10 +129,11 @@ impl PyTeehistorianWriter {
 
         // Get the serialized data from the chunk
         let py_bytes = chunk.call_method0("write_to_buffer")?;
-        let chunk_data: Vec<u8> = py_bytes.extract()?;
+        let chunk_data = py_bytes.cast::<PyBytes>()?;
 
-        // Append to our buffer
-        self.buffer.extend_from_slice(&chunk_data);
+        // Append directly from Python's immutable byte storage instead of first
+        // allocating and copying an intermediate Vec.
+        self.buffer.extend_from_slice(chunk_data.as_bytes());
 
         Ok(())
     }
@@ -151,9 +152,9 @@ impl PyTeehistorianWriter {
     ///     th.Eos()
     /// ])
     /// ```
-    fn write_all(&mut self, py: Python<'_>, chunks: Vec<Py<PyAny>>) -> PyResult<()> {
-        for chunk in chunks {
-            self.write(py, chunk.bind(py))?;
+    fn write_all(&mut self, py: Python<'_>, chunks: &Bound<'_, PyAny>) -> PyResult<()> {
+        for chunk in chunks.try_iter()? {
+            self.write(py, &chunk?)?;
         }
         Ok(())
     }

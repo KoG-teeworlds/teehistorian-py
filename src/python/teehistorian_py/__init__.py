@@ -93,7 +93,7 @@ def parse(path: Union[str, PathLike[str]]) -> Teehistorian:
         >>> for chunk in parser:
         ...     print(chunk)
     """
-    return Teehistorian(Path(path).read_bytes())
+    return Teehistorian.from_file(Path(path))
 
 
 def open(path: Union[str, PathLike[str]]) -> Teehistorian:

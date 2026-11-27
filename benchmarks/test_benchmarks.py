@@ -9,6 +9,7 @@ import pytest
 from pathlib import Path
 
 import teehistorian_py as th
+from teehistorian_py import _rust
 
 TEST_FILE = Path(__file__).parent.parent / "tests" / "000c81cc-0922-4150-97e9-cd8f9776eb8e.teehistorian"
 
@@ -56,6 +57,13 @@ def malformed_net_messages():
         writer.write(th.NetMessage(i % 64, b"\xff" * 8))
     writer.write(th.Eos())
     return writer.getvalue()
+
+
+@pytest.fixture(scope="module")
+def synthetic_file(tmp_path_factory, synthetic_player_diffs):
+    path = tmp_path_factory.mktemp("benchmark") / "synthetic.teehistorian"
+    path.write_bytes(synthetic_player_diffs)
+    return path
 
 
 @file_missing
@@ -125,11 +133,34 @@ def test_write_chunks(benchmark):
     assert len(data) > 0
 
 
+def test_write_generator(benchmark):
+    """Benchmark lazy Rust-side ingestion without an intermediate Python list."""
+
+    def write_chunks():
+        writer = _rust.TeehistorianWriter()
+        writer.write_all(th.PlayerDiff(i % 64, i % 100, i % 50) for i in range(1_000))
+        writer.write(th.Eos())
+        return writer.getvalue()
+
+    data = benchmark(write_chunks)
+    assert isinstance(data, bytes)
+    assert len(data) > 0
+
+
 def test_parse_synthetic_player_diffs(benchmark, synthetic_player_diffs):
     """Benchmark the representative hot path without a repository-external fixture."""
 
     def parse_all():
         return sum(1 for _ in th.Teehistorian(synthetic_player_diffs))
+
+    assert benchmark(parse_all) == 10_001
+
+
+def test_parse_file_backed_synthetic(benchmark, synthetic_file):
+    """Benchmark bounded file-backed parsing of the same synthetic workload."""
+
+    def parse_all():
+        return sum(1 for _ in th.Teehistorian.from_file(synthetic_file))
 
     assert benchmark(parse_all) == 10_001
 
