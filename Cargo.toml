@@ -42,6 +42,7 @@ smallvec = { version = "1.13", optional = true }
 # Serialization
 serde = "1.0"
 serde_json = { version = "1.0" }
+tempfile = "3"
 
 # Macro utilities
 pastey = "0.1"

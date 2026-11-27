@@ -1,3 +1,6 @@
+use std::io::Write;
+use std::path::{Path, PathBuf};
+
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 use serde_json::{Value, json};
@@ -267,14 +270,34 @@ impl PyTeehistorianWriter {
     /// writer.write(th.Eos())
     /// writer.save("output.teehistorian")
     /// ```
-    fn save(&mut self, path: String) -> PyResult<()> {
+    fn save(&mut self, path: PathBuf) -> PyResult<()> {
         // Ensure header is written
         if !self.header_written {
             self.write_header()?;
         }
 
-        std::fs::write(&path, &self.buffer).map_err(|e| {
-            TeehistorianParseError::File(format!("Failed to save to {}: {}", path, e))
+        let parent = path
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+            .unwrap_or_else(|| Path::new("."));
+        let mut temporary = tempfile::NamedTempFile::new_in(parent).map_err(|e| {
+            TeehistorianParseError::File(format!(
+                "Failed to create temporary file in {}: {e}",
+                parent.display()
+            ))
+        })?;
+        temporary.write_all(&self.buffer).map_err(|e| {
+            TeehistorianParseError::File(format!("Failed to write {}: {e}", path.display()))
+        })?;
+        temporary.as_file().sync_all().map_err(|e| {
+            TeehistorianParseError::File(format!("Failed to sync {}: {e}", path.display()))
+        })?;
+        temporary.persist(&path).map_err(|e| {
+            TeehistorianParseError::File(format!(
+                "Failed to atomically replace {}: {}",
+                path.display(),
+                e.error
+            ))
         })?;
         Ok(())
     }

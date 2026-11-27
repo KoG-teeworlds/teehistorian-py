@@ -139,7 +139,9 @@ writer.update_headers({
 
 ### `save(path)` → `None`
 
-Saves the teehistorian file to disk.
+Saves the teehistorian file to disk. Data is written and synced to a secure
+temporary file in the destination directory, then atomically renamed into place so
+an interrupted write does not leave a partial recording at the target path.
 
 **Parameters:**
 - `path` (str | Path): File path to save to
