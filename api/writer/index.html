@@ -1290,7 +1290,8 @@
 <a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">writer</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">th</span><span class="o">.</span><span class="n">Drop</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s2">"quit"</span><span class="p">))</span>
 </code></pre></div>
 <h3 id="write_allchunks-teehistorianwriter"><code>write_all(chunks)</code> → <code>TeehistorianWriter</code><a class="headerlink" href="#write_allchunks-teehistorianwriter" title="Permanent link">&para;</a></h3>
-<p>Writes multiple chunks at once.</p>
+<p>Writes multiple chunks at once. Any iterable is consumed one item at a time, so a
+generator does not need to be materialized as a list first.</p>
 <p><strong>Parameters:</strong>
 - <code>chunks</code>: Iterable of chunk objects</p>
 <p><strong>Returns:</strong> Self for method chaining</p>

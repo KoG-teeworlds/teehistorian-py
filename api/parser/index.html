@@ -804,6 +804,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#file-backed-streaming" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File-backed streaming
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#methods" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -831,6 +842,17 @@
     <span class="md-ellipsis">
       
         __next__()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#next_batchmax_items-int-1024" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        next_batch(max_items: int = 1024)
       
     </span>
   </a>
@@ -1068,6 +1090,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#file-backed-streaming" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File-backed streaming
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#methods" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1095,6 +1128,17 @@
     <span class="md-ellipsis">
       
         __next__()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#next_batchmax_items-int-1024" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        next_batch(max_items: int = 1024)
       
     </span>
   </a>
@@ -1223,6 +1267,17 @@
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
 <a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">parser</span> <span class="o">=</span> <span class="n">th</span><span class="o">.</span><span class="n">Teehistorian</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
 </code></pre></div></p>
+<h3 id="file-backed-streaming">File-backed streaming<a class="headerlink" href="#file-backed-streaming" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">parser</span> <span class="o">=</span> <span class="n">Teehistorian</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="s2">"demo.teehistorian"</span><span class="p">)</span>
+</code></pre></div>
+<p><code>from_file</code> opens the recording without loading it into a Python <code>bytes</code> object.
+Chunks are read incrementally into the upstream parser's bounded buffer (at most 4
+MiB for any single header/chunk), while the total file size, chunk count, metadata,
+and decoded network-message limits remain configurable. The convenience
+<code>teehistorian_py.parse(path)</code> and <code>open(path)</code> helpers use this file-backed path.</p>
+<p>The default file-backed JSON-header ceiling is 4,194,287 bytes so the 16-byte
+format UUID, header, and terminator remain within that bounded buffer. Use the bytes
+constructor only when the recording is already in memory.</p>
 <h3 id="methods">Methods<a class="headerlink" href="#methods" title="Permanent link">&para;</a></h3>
 <h4 id="__iter__"><code>__iter__()</code><a class="headerlink" href="#__iter__" title="Permanent link">&para;</a></h4>
 <p>Returns the parser itself as an iterator.</p>
@@ -1232,6 +1287,13 @@
 - Chunk object or <code>None</code> at EOF</p>
 <p><strong>Raises:</strong>
 - <code>ParseError</code>: If chunk parsing fails</p>
+<h4 id="next_batchmax_items-int-1024"><code>next_batch(max_items: int = 1024)</code><a class="headerlink" href="#next_batchmax_items-int-1024" title="Permanent link">&para;</a></h4>
+<p>Pull at most <code>max_items</code> chunks from the current parser position. The batch is
+bounded to 65,536 items and parsing stops early at EOF. Repeated calls provide
+batch-oriented backpressure without materializing the remaining recording.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">while</span> <span class="n">batch</span> <span class="o">:=</span> <span class="n">parser</span><span class="o">.</span><span class="n">next_batch</span><span class="p">(</span><span class="mi">512</span><span class="p">):</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>    <span class="n">process</span><span class="p">(</span><span class="n">batch</span><span class="p">)</span>
+</code></pre></div>
 <h4 id="header"><code>header()</code><a class="headerlink" href="#header" title="Permanent link">&para;</a></h4>
 <p>Get the header data as bytes.</p>
 <p><strong>Returns:</strong>
@@ -1257,7 +1319,7 @@
 - <code>int</code>: Number of chunks processed</p>
 <h2 id="teehistorianparser">TeehistorianParser<a class="headerlink" href="#teehistorianparser" title="Permanent link">&para;</a></h2>
 <p>Alias for <code>Teehistorian</code> provided for backward compatibility.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">TeehistorianParser</span> <span class="o">=</span> <span class="n">Teehistorian</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">TeehistorianParser</span> <span class="o">=</span> <span class="n">Teehistorian</span>
 </code></pre></div>
 
 
