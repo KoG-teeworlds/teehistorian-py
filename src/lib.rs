@@ -3,11 +3,11 @@ use std::fs::File;
 use std::io::{Read, Seek, SeekFrom, Take};
 use std::path::{Path, PathBuf};
 
-use ouroboros::self_referencing;
 use pyo3::exceptions::{PyFileNotFoundError, PyPermissionError};
 use pyo3::prelude::*;
+use pyo3::pybacked::PyBackedBytes;
 use pyo3::types::{PyBytes, PyType};
-use teehistorian::{Chunk, Th, ThBufReader};
+use teehistorian::{Chunk, Th, ThBufRead, ThBufReader};
 
 mod chunks;
 mod encoding;
@@ -33,49 +33,63 @@ const DEFAULT_MAX_NET_MESSAGE_BYTES: usize = 64 * 1024;
 const DEFAULT_STREAM_MAX_HEADER_BYTES: usize = 4 * 1024 * 1024 - 17;
 const MAX_BATCH_SIZE: usize = 65_536;
 
-/// Safe self-referential parser using `ouroboros`
+/// Immutable Python-backed input with a movable read cursor.
 ///
-/// This structure safely holds data and a parser that references it, with zero
-/// runtime overhead and no memory leaks. The `ouroboros` crate provides compile-time
-/// guarantees that references remain valid.
-#[self_referencing]
+/// Python `bytes` remain owned by `PyBackedBytes`, so the parser can borrow their
+/// storage without copying it into a second full-size Rust allocation. Mutable
+/// `bytearray` inputs are safely snapshotted by PyO3 during extraction.
+struct OwnedInput {
+    data: PyBackedBytes,
+    position: usize,
+}
+
+impl OwnedInput {
+    fn new(data: PyBackedBytes) -> Self {
+        Self { data, position: 0 }
+    }
+}
+
+impl ThBufRead for OwnedInput {
+    fn get_buf(&self) -> &[u8] {
+        &self.data[self.position..]
+    }
+
+    fn fill_buf(&mut self) -> std::io::Result<usize> {
+        Ok(0)
+    }
+
+    fn consume(&mut self, amount: usize) {
+        self.position = self
+            .position
+            .checked_add(amount)
+            .expect("teehistorian cursor overflow");
+        assert!(self.position <= self.data.len());
+    }
+}
+
 struct TeehistorianParserInner {
-    data: Box<[u8]>,
-    #[borrows(data)]
-    #[covariant]
-    parser: Th<&'this [u8]>,
+    parser: Th<OwnedInput>,
 }
 
 impl TeehistorianParserInner {
-    /// Create a new parser from data
-    ///
-    /// This is 100% safe with zero memory leaks and no unsafe code.
-    fn from_data(data: Vec<u8>) -> Result<Self, teehistorian::Error> {
-        let data_box = data.into_boxed_slice();
-
-        // Try to build the self-referencing struct
-        #[allow(clippy::borrowed_box)]
-        {
-            TeehistorianParserInnerTryBuilder {
-                data: data_box,
-                parser_builder: |data: &Box<[u8]>| Th::parse(data.as_ref()),
-            }
-            .try_build()
-        }
+    fn from_data(data: PyBackedBytes) -> Result<Self, teehistorian::Error> {
+        Ok(Self {
+            parser: Th::parse(OwnedInput::new(data))?,
+        })
     }
 
     /// Get the next chunk from the parser
     fn next_chunk(&mut self) -> Result<Option<Chunk<'_>>, teehistorian::Error> {
-        self.with_parser_mut(|parser| match parser.next_chunk() {
+        match self.parser.next_chunk() {
             Ok(chunk) => Ok(Some(chunk)),
             Err(e) if e.is_eof() => Ok(None),
             Err(e) => Err(e),
-        })
+        }
     }
 
     /// Get header data
     fn get_header(&mut self) -> Result<Vec<u8>, teehistorian::Error> {
-        self.with_parser_mut(|parser| Ok(parser.header()?.to_vec()))
+        Ok(self.parser.header()?.to_vec())
     }
 }
 
@@ -151,7 +165,7 @@ impl PyTeehistorian {
         max_net_message_bytes=DEFAULT_MAX_NET_MESSAGE_BYTES,
     ))]
     fn new(
-        data: &[u8],
+        data: PyBackedBytes,
         max_input_bytes: usize,
         max_header_bytes: usize,
         max_chunks: usize,
@@ -214,7 +228,7 @@ impl PyTeehistorian {
             }
         }
 
-        let parser = TeehistorianParserInner::from_data(data.to_vec()).map_err(|e| {
+        let parser = TeehistorianParserInner::from_data(data).map_err(|e| {
             TeehistorianParseError::Parse(format!("Failed to initialize parser: {}", e))
         })?;
         Self::from_backend(
