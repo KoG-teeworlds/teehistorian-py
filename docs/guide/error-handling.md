@@ -31,9 +31,10 @@ parser = th.Teehistorian(
 Limits are checked before expensive parsing or network-message decoding. Exceeding
 one raises `ValidationError`; malformed and truncated input raises a parser error
 instead of being silently accepted. Chunk iteration remains incremental, so callers
-provide natural backpressure by requesting the next chunk only when ready. The input
-`bytes` object is copied once into Rust-owned memory; set `max_input_bytes` according
-to the memory available to the process.
+provide natural backpressure by requesting the next chunk only when ready. Immutable
+Python `bytes` storage is retained and parsed without a second full-size copy. Mutable
+`bytearray` input is snapshotted once so later Python mutations cannot affect parsing.
+Set `max_input_bytes` according to the memory available to the process.
 
 ## Basic Error Handling
 

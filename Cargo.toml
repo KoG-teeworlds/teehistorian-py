@@ -46,9 +46,6 @@ serde_json = { version = "1.0" }
 # Macro utilities
 pastey = "0.1"
 
-# Safe self-referential structures (eliminates Box::leak)
-ouroboros = "0.18"
-
 # Threading and synchronization
 parking_lot = "0.12"
 once_cell = "1.19"

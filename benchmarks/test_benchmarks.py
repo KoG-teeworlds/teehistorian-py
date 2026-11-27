@@ -165,6 +165,13 @@ def test_parse_file_backed_synthetic(benchmark, synthetic_file):
     assert benchmark(parse_all) == 10_001
 
 
+def test_create_parser_from_python_bytes(benchmark, synthetic_player_diffs):
+    """Benchmark the zero-copy immutable-input constructor."""
+
+    parser = benchmark(th.Teehistorian, synthetic_player_diffs)
+    assert parser.header()
+
+
 def test_parse_malformed_net_messages(benchmark, malformed_net_messages):
     """Keep malformed network-message decoding bounded and measurable."""
 

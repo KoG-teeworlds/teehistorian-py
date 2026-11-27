@@ -56,6 +56,19 @@ def test_cached_header_remains_safe_after_iteration_starts() -> None:
     assert parser.get_header_str() == '{"version":"2"}'
 
 
+def test_parser_owns_temporary_python_bytes() -> None:
+    parser = _rust.Teehistorian(recording({"version": "2"}))
+    assert isinstance(next(parser), th.Eos)
+
+
+def test_mutable_bytearray_is_safely_snapshotted() -> None:
+    data = bytearray(recording({"version": "2"}))
+    parser = _rust.Teehistorian(data)
+    data[:] = b"x" * len(data)
+
+    assert isinstance(next(parser), th.Eos)
+
+
 def test_rejects_oversized_network_message() -> None:
     writer = th.TeehistorianWriter()
     writer.write(th.NetMessage(1, b"x" * 65))
