@@ -7,10 +7,15 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   benchmark:
     name: Run Benchmarks
     runs-on: ubuntu-latest
+    outputs:
+      results-exist: ${{ steps.check_results.outputs.results_exist }}
 
     steps:
       - uses: actions/checkout@v4
@@ -69,8 +74,31 @@ jobs:
             echo "results_exist=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: Upload benchmark results
+        if: github.event_name == 'push' && steps.check_results.outputs.results_exist == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: benchmark-results.json
+          if-no-files-found: error
+
+  publish-results:
+    name: Publish Benchmark Results
+    if: github.event_name == 'push' && needs.benchmark.outputs.results-exist == 'true'
+    needs: benchmark
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download benchmark results
+        uses: actions/download-artifact@v4
+        with:
+          name: benchmark-results
+
       - name: Store benchmark results
-        if: steps.check_benchmarks.outputs.benchmarks_exist == 'true' && steps.check_results.outputs.results_exist == 'true'
         uses: benchmark-action/github-action-benchmark@v1
         with:
           tool: "pytest"
